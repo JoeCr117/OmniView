@@ -1,0 +1,3 @@
+# Shell scripts execute inside the Linux container - they must keep LF line
+# endings even on Windows checkouts (CRLF breaks the shebang and `sh`).
+*.sh text eol=lf

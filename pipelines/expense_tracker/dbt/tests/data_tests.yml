@@ -1,0 +1,6 @@
+version: 2
+
+data_tests:
+  - name: CatToSubCatSums
+    description: >
+      Validates that subcategory budgets sum to less than or equal the parent category budget.

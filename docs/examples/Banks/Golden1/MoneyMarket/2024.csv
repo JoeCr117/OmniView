@@ -1,0 +1,4 @@
+"Date","ReferenceNo.","Type","Description","Debit","Credit","CheckNumber","Balance"
+"01/05/2024","4000000001","TRANSFER","Online Transfer 'STD'","","800.00","","15300.00"
+"01/18/2024","4000000002","DIVIDEND","Mobile Deposit","","12.44","","15312.44"
+"01/26/2024","4000000003","TRANSFER","EXAMPLE BROKERAGE","-800.00","","","14512.44"

@@ -1,0 +1,1 @@
+from .golden1 import Golden1

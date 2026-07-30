@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: gold_DimDate
+    description: >
+      Bank-agnostic calendar dimension, one row per day from 2020-01-01 to
+      2030-12-31, generated rather than loaded. Joined to by DateSK on every
+      transaction and daily-metrics model. CalendarDate is TEXT ('YYYY-MM-DD')
+      to match the rest of the warehouse, which carries dates as ISO strings
+      alongside integer YYYYMMDD surrogate keys.
+    columns:
+      - name: DateSK
+        description: Surrogate key in YYYYMMDD form; the join key for every fact model.
+        data_tests:
+          - unique
+          - not_null
+      - name: CalendarDate
+        description: The same day as an ISO 'YYYY-MM-DD' string.
+        data_tests:
+          - unique
+          - not_null

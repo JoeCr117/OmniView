@@ -1,0 +1,52 @@
+{
+  "description": "TEMPLATE. Copy to databricks_manifest.json (git-ignored) and fill in with your own workspace's values, or let the generate-artifact-manifest skill write it after a deploy. The real manifest records every Databricks resource the OmniView deployment created; deploy/databricks/tear_down.py deletes exactly those, in order, and nothing else.",
+  "_usage": [
+    "cp deploy/databricks/databricks_manifest.example.json deploy/databricks/databricks_manifest.json",
+    "then replace every <PLACEHOLDER> below with the values for your workspace.",
+    "The real file is git-ignored on purpose: it is deployment state, not source, and",
+    "it names a live Postgres endpoint and service principal. Operational knowledge",
+    "that is NOT deployment-specific lives in docs/DEPLOYMENT.md, not here."
+  ],
+  "workspace_host": "https://<your-workspace>.cloud.databricks.com",
+  "cli_profile": "<your-databricks-cli-profile>",
+  "app_name": "omniview",
+  "info": {
+    "app_url": "https://omniview-<workspace-number>.<region>.databricksapps.com",
+    "app_service_principal_client_id": "<uuid of the app's service principal>",
+    "app_service_principal_name": "app-<suffix> omniview",
+    "lakebase_endpoint": "projects/omniview/branches/production/endpoints/primary",
+    "lakebase_host": "<endpoint-slug>.database.<region>.cloud.databricks.com",
+    "lakebase_database": "databricks_postgres",
+    "app_resources": "see deploy/databricks/app_create.json (postgres branch/database + secret scope binding)",
+    "user_api_scopes": "sql (applied via deploy/databricks/app_update.json; iam.* read scopes are implicit defaults; jobs scopes are rejected by the Free Edition validator - the Admin Portal's Jobs tab falls back to the app identity)",
+    "sql_warehouse_id": "<warehouse id the Admin Portal reads system.billing through - pre-existing, NOT created by this deployment, never torn down>",
+    "_redeploy_log": "The real manifest also accumulates one 'redeploy_<date>' note per rebuild: what shipped, which service principal replaced which, whether datavault had to be rebuilt. Useful history, but deployment-specific - keep it in the ignored file.",
+    "_operational_notes": "The hazards that used to be documented in this block (Lakebase soft-delete + slug reservation, `apps update` replacing the whole app spec, schema-ownership and the object-ownership self-healing mechanisms) are NOT deployment-specific and now live in docs/DEPLOYMENT.md. Read that before any teardown or redeploy."
+  },
+  "resources": [
+    {
+      "type": "app",
+      "id": "omniview",
+      "created": "<YYYY-MM-DD>",
+      "notes": "The Databricks App (compute + its auto-created service principal + the resource bindings to the Lakebase branch and secret scope). Deleting it removes all of those."
+    },
+    {
+      "type": "workspace_directory",
+      "id": "/Workspace/Users/<your-workspace-user>/omniview-app",
+      "created": "<YYYY-MM-DD>",
+      "notes": "Synced app source bundle (mirror of dist/databricks_app). Carries one ACL: CAN_READ for the app service principal (dies with the folder). Safe to delete; rebuilt by deploy/databricks/build_app.py + databricks workspace import-dir."
+    },
+    {
+      "type": "secret_scope",
+      "id": "omniview",
+      "created": "<YYYY-MM-DD>",
+      "notes": "Holds one secret: secret-key (Django SECRET_KEY). Deleting the scope deletes the key."
+    },
+    {
+      "type": "lakebase_project",
+      "id": "projects/omniview",
+      "created": "<YYYY-MM-DD>",
+      "notes": "DESTROYS ALL APP DATA: the production branch holds the omniview schema (auth/sessions + uploaded CSVs + budget map) and the datavault schema (warehouse). A local Data/Banks tree remains as the re-import source."
+    }
+  ]
+}

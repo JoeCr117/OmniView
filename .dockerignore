@@ -1,0 +1,20 @@
+# Docker build-context exclusions.
+#
+# This file MUST stay at the repo root even though every other Docker file
+# lives in docker/: Docker reads .dockerignore from the build CONTEXT root, not
+# from beside the Dockerfile. Moved into docker/, it is silently ignored and
+# .venv/, node_modules/ and the production Data/ tree get swept into the build.
+# See docker/README.md.
+
+.git
+.venv
+node_modules
+frontend/node_modules
+frontend/.next
+frontend/out
+backend/staticfiles
+Data
+pipelines/*/dbt/target
+pipelines/*/dbt/dbt_packages
+pipelines/*/dbt/logs
+**/__pycache__

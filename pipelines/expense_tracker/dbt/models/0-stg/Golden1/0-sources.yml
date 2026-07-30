@@ -1,0 +1,19 @@
+version: 2
+
+sources:
+  - name: golden1_staging
+    # Postgres disallows cross-database references, so the source database
+    # must match the profile's dbname (same env var, same default).
+    database: "{{ env_var('PGDATABASE', 'omniview') }}"
+    schema: datavault
+    tags: ['Golden1', 'stg']
+    description: >
+      Tables staged from the Golden1 Bank by the Python pipeline (main.py ->
+      banks/bank.py:to_sql). Column names are lowercased at the staging
+      boundary so downstream models can use unquoted identifiers.
+    tables:
+      - name: stg_Golden1_CreditCard
+      - name: stg_Golden1_MoneyMarket
+      - name: stg_Golden1_Savings
+      - name: stg_Golden1_FreeChecking
+      - name: stg_Golden1_BudgetMap

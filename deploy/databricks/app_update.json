@@ -1,0 +1,6 @@
+{
+  "_comment": "Applied via: databricks apps update omniview --json @deploy/databricks/app_update.json (or the SDK w.apps.update). The iam.* read scopes are implicit defaults. NOTE: every jobs scope spelling (jobs.jobs, jobs, ...) is rejected by this workspace's validator as of 2026-07-13 (Free Edition restricted set) - the Jobs tab therefore falls back to the app's own identity (see adminportal/services.py jobs_overview_for). Re-try adding a jobs scope here when the platform supports it.",
+  "user_api_scopes": [
+    "sql"
+  ]
+}

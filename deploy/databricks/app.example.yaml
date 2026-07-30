@@ -1,0 +1,40 @@
+# TEMPLATE for deploy/databricks/app.yaml (which is git-ignored - it carries the
+# admin allow-list and this deployment's own app URL). Copy it and fill in the
+# <PLACEHOLDER> values for your workspace:
+#
+#   cp deploy/databricks/app.example.yaml deploy/databricks/app.yaml
+#
+# deploy/databricks/build_app.py copies app.yaml to the bundle ROOT and fails
+# with a pointer here if it is missing.
+#
+# Databricks Apps runtime config. Runs in uv mode: pyproject.toml + uv.lock
+# present and NO requirements.txt anywhere in the bundle (its presence would
+# force pip mode, which is pinned to Python 3.11 - too old for Django 6).
+#
+# The attached Lakebase resource (see deploy/databricks/databricks_manifest.json)
+# injects PGHOST/PGDATABASE/PGUSER/PGPORT/PGSSLMODE; passwords are OAuth
+# tokens minted at connection time against ENDPOINT_NAME below.
+command: ["python", "databricks_start.py"]
+
+env:
+  - name: DJANGO_SETTINGS_MODULE
+    value: "config.settings.databricks"
+  # Lakebase endpoint the app mints its Postgres password against. Matches
+  # `lakebase_endpoint` in the manifest.
+  - name: ENDPOINT_NAME
+    value: "projects/omniview/branches/production/endpoints/primary"
+  # Django SECRET_KEY, read from the `omniview` secret scope - never inlined here.
+  - name: SECRET_KEY
+    valueFrom: "secret_key"
+  # This app's own URL, used to build absolute links.
+  - name: OMNIVIEW_APP_URL
+    value: "https://omniview-<workspace-number>.<region>.databricksapps.com"
+  # OmniView admins (comma-separated, case-insensitive): promoted to staff on
+  # sign-in; staff see the Admin Portal and bypass per-app access grants. This is
+  # a privilege grant naming real accounts - keep the real list out of git.
+  - name: OMNIVIEW_ADMIN_EMAILS
+    value: "<your-admin-email>"
+  # SQL warehouse the Admin Portal's cost dashboards query system.billing
+  # through (e.g. the workspace's Serverless Starter Warehouse).
+  - name: OMNIVIEW_SQL_WAREHOUSE_ID
+    value: "<your-sql-warehouse-id>"

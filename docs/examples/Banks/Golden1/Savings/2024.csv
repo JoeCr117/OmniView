@@ -1,0 +1,4 @@
+"Date","ReferenceNo.","Type","Description","Debit","Credit","CheckNumber","Balance"
+"01/11/2024","3000000001","TRANSFER","from share 1","","500.00","","6820.14"
+"01/20/2024","3000000002","DIVIDEND","Checking Deposit","","1.85","","6821.99"
+"01/31/2024","3000000003","TRANSFER","to share 0","-250.00","","","6571.99"

@@ -1,0 +1,53 @@
+
+# Name your project! Project names should contain only lowercase characters
+# and underscores. A good package name should reflect your organization's
+# name or the intended use of these models
+name: 'ExpenseTracker'
+version: '1.0.0'
+flags:
+  send_anonymous_usage_stats: false
+# This setting configures which "profile" dbt uses for this project.
+profile: 'TransactionProfiles'
+
+# These configurations specify where dbt should look for different types of files.
+# The `model-paths` config, for example, states that models in this project can be
+# found in the "models/" directory. You probably won't need to change these!
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets: # directories to be removed by `dbt clean`
+  - target
+  - dbt_packages
+
+# Hand every relation in the target schema to the shared owner role after each
+# run. In the cloud, objects are otherwise owned by the app's service principal,
+# which is replaced whenever the app is recreated - leaving the next SP unable to
+# read or drop them. No-ops locally, where the role does not exist. See
+# macros/ensure_schema_ownership.sql for the full rationale.
+on-run-end:
+  - "{{ ensure_schema_ownership() }}"
+
+models:
+  ExpenseTracker:
+    1-bronze:
+      +tags: bronze
+      +docs:
+        node_color: "#A97142"
+      Golden1:
+        +tags: Golden1
+    2-silver:
+      +tags: silver
+      +docs:
+        node_color: "#808080"
+      Golden1:
+        +tags: Golden1
+    3-gold:
+      +tags: gold
+      +docs:
+        node_color: "#B8860B"
+      Golden1:
+        +tags: Golden1

@@ -1,0 +1,26 @@
+# Fixture BudgetMap for the E2E scratch environment (copied into
+# backend/.e2e/Banks/ by the e2e_bootstrap command). Mirrors the
+# VALID_BUDGET_MAP shape in backend/conftest.py.
+Car:
+  Budget: 300
+  SubCategories:
+    Fuel:
+      Budget: 100
+      Type:
+        Expense:
+          Gas:
+            - SHELL
+            - CHEVRON
+    Insurance:
+      Budget: 200
+      Type:
+        Expense:
+          Premium:
+            - GEICO
+Income:
+  SubCategories:
+    Paycheck:
+      Type:
+        Income:
+          Employer:
+            - ACME PAYROLL

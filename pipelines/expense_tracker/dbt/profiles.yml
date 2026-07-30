@@ -1,0 +1,20 @@
+TransactionProfiles:
+  outputs:
+    # Single Postgres target (Phase 2): the same libpq-standard PG* env vars
+    # the Django settings read (backend/config/settings/base.py:pg_database)
+    # and that a Databricks Apps Lakebase resource injects. Defaults match
+    # docker/docker-compose.yml's `db` service so a bare local run just works.
+    # dbt builds everything into the `datavault` schema; Django's own tables
+    # live in `omniview` (see manage.py ensure_schemas).
+    pg:
+      type: postgres
+      threads: 4
+      host: "{{ env_var('PGHOST', '127.0.0.1') }}"
+      port: "{{ env_var('PGPORT', '5432') | int }}"
+      user: "{{ env_var('PGUSER', 'omniview') }}"
+      password: "{{ env_var('PGPASSWORD', 'omniview-dev') }}"
+      dbname: "{{ env_var('PGDATABASE', 'omniview') }}"
+      schema: datavault
+      sslmode: "{{ env_var('PGSSLMODE', 'prefer') }}"
+
+  target: pg

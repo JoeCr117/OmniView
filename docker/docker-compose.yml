@@ -1,0 +1,100 @@
+# Local development/test environment: OmniView app + its Postgres server.
+# This is NOT the production deployment - production is Databricks Apps, which
+# uses no Docker at all (see deploy/databricks/).
+#
+#   docker compose -f docker/docker-compose.yml up -d      # full stack (app on http://127.0.0.1:8010)
+#   docker compose -f docker/docker-compose.yml up -d db   # Postgres only, for host-side runserver/pipeline/dbt/E2E
+#
+# The -f flag is needed because this file no longer sits at the repo root. Set
+# COMPOSE_FILE=docker/docker-compose.yml once per shell to drop it. Full
+# explanation and a command cookbook: docker/README.md.
+#
+# Relative paths below are resolved from THIS file's directory, so `context: ..`
+# climbs one level to the repo root - which is where the Dockerfile's COPY lines
+# expect to be.
+#
+# Compose reads docker/.env (gitignored, beside this file) for the optional vars
+# below: SECRET_KEY, DJANGO_SUPERUSER_*, OMNIVIEW_PORT, PGPASSWORD. The PG*
+# defaults here match backend/config/settings/base.py:pg_database and
+# dbt/profiles.yml, so everything agrees with zero configuration.
+#
+# Run compose from PowerShell, not Git Bash (path mangling - see CLAUDE.md).
+
+# Pins the compose "project name", which prefixes generated network names and
+# would otherwise prefix volume names too. Compose derives it from this file's
+# PARENT DIRECTORY when unset - so with this file in docker/, the project would
+# silently become "docker", renaming the database volume and starting on an
+# empty database. Do not remove this.
+#
+# The volume dodges the prefix entirely by declaring an explicit `name:` at the
+# bottom of this file, so its identity no longer moves when the project is
+# renamed. (History: this was `expensetracker` until 2026-07-19; the data was
+# copied from `expensetracker_omniview-pgdata` into the prefix-free
+# `omniview-pgdata` at that point.)
+name: omniview
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: omniview
+      POSTGRES_USER: omniview
+      POSTGRES_PASSWORD: ${PGPASSWORD:-omniview-dev}
+    volumes:
+      - omniview-pgdata:/var/lib/postgresql/data
+    # Exposed on localhost so host-side dev (runserver, pytest -m integration,
+    # main.py pipeline, dbt) reaches the same server the app uses.
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omniview -d omniview"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    # Long form is required: the build context is the repo root (one level up),
+    # while the Dockerfile lives here. `build: .` would make docker/ the context
+    # and every COPY in the Dockerfile would fail with "not found in build context".
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGDATABASE: omniview
+      PGUSER: omniview
+      PGPASSWORD: ${PGPASSWORD:-omniview-dev}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-}
+      OMNIVIEW_ADMIN_EMAILS: ${OMNIVIEW_ADMIN_EMAILS:-}
+    env_file:
+      # docker/.env, beside this file. It MUST live here rather than at the repo
+      # root: the ${VAR:-default} substitutions above are resolved by Compose
+      # from the "project directory", which defaults to the directory holding
+      # this compose file. A root-level .env would still be injected by this
+      # env_file line, but would NOT feed those substitutions - so OMNIVIEW_PORT
+      # and PGPASSWORD would silently keep their defaults. Keeping both
+      # mechanisms pointed at one file avoids that split-brain.
+      # `required: false` = no .env is a normal, supported setup.
+      - path: .env
+        required: false
+    # No data volumes: source data (bank CSVs + budget map) lives in Postgres
+    # rows since P2 (rawdata_rawfile / budgets_budgetmapdocument), so the app
+    # container is stateless.
+    # 8000 belongs to the pre-Postgres production container until cutover;
+    # override with OMNIVIEW_PORT once that container is retired.
+    ports:
+      - "${OMNIVIEW_PORT:-8010}:8000"
+
+volumes:
+  omniview-pgdata:
+    # Explicit name = no compose project prefix. This volume is DEPLOYMENT-level
+    # infrastructure, not any one app's: it carries the shell's auth/sessions/SSO
+    # tables and the Admin Portal's grants alongside ExpenseTracker's data.
+    # Per-app isolation lives a layer up, in the omniview/datavault schemas and
+    # config/db_router.py - not here.
+    name: omniview-pgdata

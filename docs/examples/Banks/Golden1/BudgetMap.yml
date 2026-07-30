@@ -1,0 +1,312 @@
+# Example budget map ("transaction map") for a bank named Golden1.
+#
+# This is SYNTHETIC sample data - every merchant, amount and account below is
+# invented. It exists to document the file format; the real budget map is
+# private and git-ignored (see docs/examples/README.md).
+#
+# Shape, top to bottom:
+#
+#   Category:                      # top-level spending group
+#     Budget: <number>             # optional monthly budget for the category
+#     SubCategories:
+#       SubCategory:
+#         Budget: <number>         # optional; must not exceed the parent's
+#         Type:                    # free-form grouping, carried through to gold
+#           Type Name:
+#             Label:               # the human-readable payee/merchant
+#               - STRING MATCH     # matched by containment against Description
+#               - ANOTHER MATCH    # a label may have any number of matches
+#
+# Notes that matter when authoring one of these:
+#   - Matching is case-sensitive string CONTAINMENT against a transaction's
+#     Description, and FIRST MATCH WINS (see banks/bank.py _map_categories).
+#     Order broader matches after narrower ones.
+#   - Quote any match containing a `#`, `:` or leading/trailing spaces, or YAML
+#     will mis-parse it (e.g. "ATM FEE WITHDRAWAL Trace #1234").
+#   - `Budget` is optional. Categories that only classify money movement
+#     (Income, Banking, transfers) normally omit it.
+#   - A subcategory budget may never exceed its parent category's budget - the
+#     dbt data test tests/Budgets/CatToSubCatSums.sql fails the build if it does.
+#   - CategorySK is hashed from (Category, SubCategory), so renaming either one
+#     re-keys the row downstream.
+
+Food:
+  Budget: 700
+  SubCategories:
+    Dining:
+      Budget: 225
+      Type:
+        Upscale Dining:
+          The Copper Table:
+            - COPPER TABLE
+          Harborview Grill:
+            - HARBORVIEW GRILL
+        Casual Dining:
+          Sunrise Diner:
+            - SUNRISE DINER
+          Bayleaf Cafe:
+            - BAYLEAF
+          Roundhouse Pizza:
+            - ROUNDHOUSE PIZZA
+            - ROUNDHOUSE #
+        Sushi:
+          Blue Lantern Sushi:
+            - BLUE LANTERN
+          Kaito Ramen:
+            - KAITO RAMEN
+        Coffee:
+          Northbeam Coffee:
+            - NORTHBEAM COFFEE
+            - NORTHBEAM ROASTERS
+    Groceries:
+      Budget: 475
+      Type:
+        Supermarket:
+          Greenfield Market:
+            - GREENFIELD MKT
+            - GREENFIELD MARKET
+          ValueMart:
+            - VALUEMART
+        Warehouse:
+          BulkCo:
+            - BULKCO WHSE
+        Convenience:
+          QuickStop:
+            - QUICKSTOP
+
+Income:
+  SubCategories:
+    Work:
+      Type:
+        Primary Employer:
+          Paycheck:
+            - EXAMPLE EMPLOYER (PAYROLL)
+          Reimbursement:
+            - EXAMPLE EMPLOYER (ACH)
+    Other:
+      Type:
+        Tax Returns:
+          Tax Preparer:
+            - SAMPLE TAX SVC
+        Rewards:
+          Cash Back:
+            - CashBack+ 00000000-0000-0000-0000-000000000000
+          CC Rewards:
+            - Credit Card Rewards
+
+Investment:
+  Budget: 800
+  SubCategories:
+    TransferOut:
+      Budget: 800
+      Type:
+        Brokerage:
+          Example Brokerage:
+            - EXAMPLE BROKERAGE
+            - EXAMPLE INVEST
+        Retirement:
+          Example Retirement:
+            - EXAMPLE RETIRE CONTRIB
+
+Car:
+  Budget: 335
+  SubCategories:
+    Insurance:
+      Budget: 180
+      Type:
+        Provider:
+          Example Auto Insurance:
+            - EXAMPLE AUTO INS
+    Fuel:
+      Budget: 105
+      Type:
+        Gas:
+          Fuelworks:
+            - FUELWORKS
+          Petrolia:
+            - PETROLIA #
+    Maintenance:
+      Budget: 50
+      Type:
+        Service:
+          Cedar Auto Repair:
+            - CEDAR AUTO
+        Car Wash:
+          Sparkle Wash:
+            - SPARKLE WASH
+
+Rent:
+  Budget: 2000
+  SubCategories:
+    Rent:
+      Budget: 2000
+      Type:
+        Rent:
+          Example Apartments:
+            - EXAMPLE APTS
+            - EXAMPLE PROPERTY MGMT
+        Insurance:
+          Example Renters Insurance:
+            - EXAMPLE RENTERS INS
+
+PersonalCare:
+  Budget: 190
+  SubCategories:
+    Fitness:
+      Budget: 100
+      Type:
+        Gym:
+          Example Fitness:
+            - EXAMPLE FITNESS
+        Supplements:
+          Nutrition Shop:
+            - NUTRITION SHOP
+    Medical:
+      Budget: 45
+      Type:
+        Eye Care:
+          Example Vision Center:
+            - EXAMPLE VISION
+        Pharmacy:
+          Example Pharmacy:
+            - EXAMPLE PHARMACY
+    Grooming:
+      Budget: 45
+      Type:
+        Barber:
+          Corner Barbershop:
+            - CORNER BARBER
+
+Entertainment:
+  Budget: 260
+  SubCategories:
+    Streaming:
+      Budget: 60
+      Type:
+        Subscription:
+          StreamCo:
+            - STREAMCO
+          TuneStream:
+            - TUNESTREAM
+    Events:
+      Budget: 120
+      Type:
+        Tickets:
+          Example Tickets:
+            - EXAMPLE TICKETS
+        Cinema:
+          Grand Cinema:
+            - GRAND CINEMA
+    Hobbies:
+      Budget: 80
+      Type:
+        Games:
+          Example Games:
+            - EXAMPLE GAMES
+
+Travel:
+  Budget: 400
+  SubCategories:
+    Lodging:
+      Budget: 200
+      Type:
+        Hotel:
+          Example Hotels:
+            - EXAMPLE HOTEL
+    Transport:
+      Budget: 200
+      Type:
+        Airline:
+          Example Air:
+            - EXAMPLE AIR
+        Rideshare:
+          Example Rides:
+            - EXAMPLE RIDES
+
+General:
+  Budget: 300
+  SubCategories:
+    Shopping:
+      Budget: 200
+      Type:
+        Online:
+          Example Online Store:
+            - EXAMPLE ONLINE
+        Home:
+          Homestead Supply:
+            - HOMESTEAD SUPPLY
+    Gifts:
+      Budget: 100
+      Type:
+        Gift:
+          Gift Shop:
+            - GIFT SHOP
+
+Services:
+  Budget: 430
+  SubCategories:
+    General:
+      Budget: 10
+      Type:
+        Payment:
+          Peer Transfer:
+            - PEER TRANSFER
+    Phone:
+      Budget: 150
+      Type:
+        Service:
+          Example Wireless:
+            - EXAMPLE WIRELESS
+    Utilities:
+      Budget: 250
+      Type:
+        Internet:
+          Example Broadband:
+            - EXAMPLE BROADBAND
+        Gas/Electricity:
+          Example Utility:
+            - EXAMPLE UTILITY
+        Water:
+          Example Water District:
+            - EXAMPLE WATER
+
+Banking:
+  SubCategories:
+    Transfer:
+      Type:
+        Internal Transfer:
+          Transfer In:
+            - from share 0
+            - from share 1
+          Transfer Out:
+            - to share 0
+            - to share 1
+        External Transfer:
+          Transfer In:
+            - Online Transfer 'STD'
+          Transfer Out:
+            - Online Transfer 'DTD'
+    CreditCard:
+      Type:
+        Payment:
+          Pay Down:
+            - AUTOMATIC PAYMENT
+            - Example Credit Union (CC Payment)
+          Interest:
+            - Interest Charge
+    Fees:
+      Type:
+        Fee:
+          ATM Fee:
+            - "ATM FEE DRAFT WITHDRAWAL Trace #0000"
+          Overdraft:
+            - OVERDRAFT FEE
+    General:
+      Type:
+        Deposit:
+          General Deposit:
+            - Checking Deposit
+            - Mobile Deposit
+        Withdrawal:
+          General Withdrawal:
+            - Withdrawal
