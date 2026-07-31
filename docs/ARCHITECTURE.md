@@ -188,6 +188,13 @@ the whole "delete and rebuild" story, and it's why nothing Django owns may live 
 7. `pipelines/<app>/main.py`, and a thin `backend/apps/<app>/pipeline.py` calling
    `run_pipeline("pipelines.<app>.main", settings.PIPELINE_ROOT)`.
 
+**Docs**
+8. A `README.md` in each of the app's package roots (the standard format below) — that is where the
+   app's internals are documented, never the root `CLAUDE.md`, which stays host-level.
+9. Beside each of those, a one-line `CLAUDE.md` containing `@README.md`. Nested `CLAUDE.md` files are
+   read on demand when an agent works in that directory, so an app's specifics cost nothing at
+   session start and arrive automatically when they're relevant.
+
 **What you do NOT touch:** `INSTALLED_APPS`, `config/api.py`, `config/db_router.py`,
 `config/frontend.py`, `admin_portal/models.py`. If you find yourself editing the shell to add an app,
 the registry is missing something — extend `appspec.py` instead.
