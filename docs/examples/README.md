@@ -42,16 +42,33 @@ when to quote a match, the parent/child budget constraint that
 
 ### The CSVs
 
-The columns are Golden1's own export format, which
-`pipelines/expense_tracker/banks/all_banks/golden1.py` parses:
+Golden1 has exported two layouts, and every account here carries one file of
+each. Both are declared in
+`pipelines/expense_tracker/banks/all_banks/golden1_schema.py`, which picks one
+per file by matching its header.
+
+`2024.csv` — the legacy layout (v1), 8 columns, rows oldest-first:
 
 ```
 "Date","ReferenceNo.","Type","Description","Debit","Credit","CheckNumber","Balance"
 ```
 
-`Debit` is negative and `Credit` positive, with one of the two blank per row;
-the pipeline sums them into `TransactionAmount`. A different bank exports a
-different shape — that is exactly what a new `Bank` subclass's
+`2026.csv` — the 2026 layout (v2), 9 columns, rows newest-first:
+
+```
+"Date","Account","Account Type","Description","Check #","Category","Credit","Debit","Daily Balance"
+```
+
+**The money columns are order-inverted between the two**: v1 emits
+`Debit, Credit` and v2 emits `Credit, Debit`. Reading either header by position
+swaps every debit and credit while a column-count check still passes, so
+`golden1.py` resolves every column by name. v2 also carries no `ReferenceNo.`
+and no transaction-direction `Type` (its `Account Type` is the account *kind*,
+not the direction); `Account`, `Account Type` and `Category` are dropped.
+
+In both layouts `Debit` is negative and `Credit` positive, with one of the two
+blank per row; the pipeline sums them into `TransactionAmount`. A different bank
+exports a different shape — that is exactly what a new `Bank` subclass's
 `_parse_transactions()` exists to normalize.
 
 The `Description` values here are written to hit the `StringMatch` entries in

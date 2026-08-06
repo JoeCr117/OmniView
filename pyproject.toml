@@ -16,6 +16,7 @@ dependencies = [
     "django-ninja>=1.6.2",
     "gunicorn>=26.0.0",
     "ipykernel>=6.30.0",
+    "numpy>=2.3.2",
     "pandas>=2.3.1",
     "psycopg[binary]>=3.3.4",
     "pyyaml>=6.0.2",
@@ -34,4 +35,12 @@ DJANGO_SETTINGS_MODULE = "config.settings.test"
 # manage.py runs); "." so the suite can also see `pipelines` - the schema
 # contract test asserts the two sides still agree on table names.
 pythonpath = ["backend", "."]
-testpaths = ["backend"]
+# pipelines is listed so the bank-parser tests are collected. The pipelines are
+# not importable from backend; pythonpath's "." is what makes pipelines.* resolve.
+testpaths = ["backend", "pipelines"]
+# Setting norecursedirs REPLACES pytest's defaults, so the defaults are restated
+# here alongside dbt's generated output.
+norecursedirs = [
+    "*.egg", ".*", "_darcs", "build", "CVS", "dist", "node_modules", "venv", "{arch}",
+    "target", "logs", "dbt_packages",
+]
