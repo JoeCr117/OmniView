@@ -2,20 +2,32 @@
 
 Auth is applied at the mount in config/api.py (AppAccessAuth('omni-erd')) and
 inherited by everything here, so every endpoint below needs a grant - staff
-bypass. tests/test_enforcement.py is what holds that down.
+bypass. tests/test_api.py covers access control; tests/test_overrides_api.py covers the admin boundary.
 
-Read-only with respect to any introspected database: the only thing this app
-writes is a user's own diagram layout, in its own table.
+Read-only with respect to any introspected database. It writes two of its own
+tables, either side of a privilege boundary:
+
+- a user's own diagram layout, writable by anyone holding the grant;
+- the relationship overrides, which are global assertions about the schema and
+  so need staff. Those live on `admin_api.admin_router`, mounted below at
+  /admin. That router carries `AdminAuth()` on its own constructor and is
+  mounted bare, deliberately: a nested router's own auth beats the auth it would
+  inherit, so the boundary is stated where the endpoints are rather than set
+  from here, and no endpoint can be added without it. admin_api.py says why at
+  length.
 """
 
 from ninja import Router
 from ninja.responses import Status
 
+from .admin_api import admin_router
 from .schemas import LayoutIn, LayoutOut, SchemaGraphOut, SourceOut
 from .services import build_graph, get_layout, save_layout
 from .sources import SOURCES
 
 router = Router(tags=['omni-erd'])
+
+router.add_router('/admin', admin_router)
 
 
 @router.get('/sources', response=list[SourceOut])

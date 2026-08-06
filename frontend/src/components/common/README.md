@@ -17,6 +17,7 @@ the progress affordances.
 | `DataTable.tsx` | The one Tabulator grid (lazy-loads Tabulator on mount). |
 | `Pager.tsx` | Offset/limit pager. |
 | `AsyncState.tsx` | `Loading` + `ErrorState` (shadcn Retry). |
+| `AdminGate.tsx` | Staff-only client gate for a page (Admin Portal, Omni-ERD Relationships). |
 | `KpiCard.tsx` | The shared KPI card (optional link). |
 | `skeletons.tsx` | `KpiSkeleton` / `ChartSkeleton` / `TableSkeleton` (shaped placeholders). |
 | `progress.tsx` | `RefreshBar` (indeterminate refetch sliver) + `ProgressBar` (determinate/busy). |

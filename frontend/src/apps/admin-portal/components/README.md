@@ -6,14 +6,13 @@ app needs them.
 
 ## Role in OmniView
 Mounted by the portal's route pages. `UsersTable` is the Users & Access dashboard;
-`AdminGate` client-guards the portal for non-staff; `NotConnectedCard` renders the
-Databricks 503/403 taxonomy distinctly.
+`NotConnectedCard` renders the Databricks 503/403 taxonomy distinctly. The portal
+is client-guarded by `AdminGate`, which lives in `components/common`.
 
 ## Contents
 | Item | What it does |
 |------|--------------|
 | `UsersTable.tsx` | KPI cards + per-user grant/revoke/admin switches + debounced search. |
-| `AdminGate.tsx` | Client-side redirect for non-staff (defense in depth; the API is the boundary). |
 | `NotConnectedCard.tsx` | Renders + classifies Databricks not-connected / missing-scope errors. |
 
 ## Conventions & gotchas

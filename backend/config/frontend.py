@@ -17,6 +17,10 @@ from django.views.static import serve
 # omniview_app.py); this view only knows how to serve the redirect.
 from shell.registry import LEGACY_REDIRECTS  # noqa: F401  (re-exported for tests)
 
+# Route prefixes, not app ids: Omni-ERD as a whole is grant-level, only its
+# relationship editor is staff-only.
+STAFF_ONLY_PAGE_PREFIXES = ("apps/admin-portal", "apps/omni-erd/relationships")
+
 
 def _needs_login(request, resource: str) -> bool:
     """HTML page requests require a session when OMNIVIEW_AUTH_REQUIRED is on.
@@ -35,14 +39,18 @@ def _needs_login(request, resource: str) -> bool:
 
 
 def _staff_only_page(request, resource: str) -> bool:
-    """Admin Portal pages 404 for signed-in non-staff (defense in depth -
-    the /api/admin-portal endpoints behind AdminAuth are the real boundary).
-    Assets still pass via the extension check, like _needs_login."""
+    """Staff-only routes 404 for signed-in non-staff (defense in depth - the
+    API endpoints behind AdminAuth are the real boundary).
+
+    Everything under one of these prefixes is gated, extension or not: the
+    export writes each route as a directory plus sibling `<route>.html` and
+    `<route>.txt` (the RSC payload), and puts no assets there - bundles live
+    under _next/. Exempting anything with a file extension would hand the
+    page shell and its flight data to anyone who appends one.
+    """
     if not settings.OMNIVIEW_AUTH_REQUIRED:
         return False
-    if not resource.startswith("apps/admin-portal"):
-        return False
-    if "." in resource.rsplit("/", 1)[-1]:
+    if not resource.startswith(STAFF_ONLY_PAGE_PREFIXES):
         return False
     return not request.user.is_staff
 

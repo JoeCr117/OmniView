@@ -53,6 +53,109 @@ export function saveLayout(
   );
 }
 
+/** What an admin may assert about a pair of entities. Mirrors
+ *  `schemas.py:OverrideAction`. */
+export type OverrideAction = "join" | "suppress";
+
+export type OverrideCardinality = "many_to_one" | "one_to_one";
+
+/** 'active', or why the stored override no longer fits the catalog. Derived by
+ *  the backend on every read, never stored. */
+export type OverrideStatus = "active" | "unknown_entity" | "unknown_column" | "self_pair";
+
+/** One stored override, as `schemas.py:RelationshipOverrideOut` emits it.
+ *  Directed, not canonical: `source` is the referencing (many) side the admin
+ *  chose. */
+export interface RelationshipOverride {
+  id: number;
+  /** The `ovr:<id>` this override draws as in the graph, so a row here can be
+   *  matched to the edge on the canvas. */
+  edge_id: string;
+  source_id: string;
+  namespace: string;
+  source_entity: string;
+  source_columns: string[];
+  target_entity: string;
+  target_columns: string[];
+  action: OverrideAction;
+  cardinality: OverrideCardinality;
+  note: string;
+  status: OverrideStatus;
+  /** '' when active; otherwise names what is missing, verbatim. */
+  detail: string;
+  updated_at: string;
+  /** null when written with auth off, or when that user has since been deleted. */
+  updated_by: string | null;
+}
+
+/** An admin's assertion as they make it, per `schemas.py:RelationshipOverrideIn`.
+ *  The service orders the pair and validates the column pairing; nothing is
+ *  normalised here. */
+export interface RelationshipOverrideInput {
+  source_id: string;
+  /** Omitted means the source's first namespace, which the backend resolves. */
+  namespace?: string;
+  /** The referencing (many) side. */
+  source_entity: string;
+  /** Paired positionally with `target_columns`; both empty when suppressing. */
+  source_columns: string[];
+  /** The referenced (one) side. */
+  target_entity: string;
+  target_columns: string[];
+  action: OverrideAction;
+  cardinality: OverrideCardinality;
+  note: string;
+}
+
+/** Which row a write landed on - all a write can honestly say, since `status`
+ *  is only derivable against a live catalog. Refetch the list after writing. */
+export interface OverrideId {
+  id: number;
+}
+
+const overridesQuery = (sourceId: string, namespace?: string) =>
+  `source_id=${encodeURIComponent(sourceId)}` +
+  (namespace ? `&namespace=${encodeURIComponent(namespace)}` : "");
+
+export function fetchOverrides(
+  sourceId: string,
+  namespace?: string,
+): Promise<RelationshipOverride[]> {
+  return apiFetch<RelationshipOverride[]>(
+    `${BASE}/admin/overrides?${overridesQuery(sourceId, namespace)}`,
+  );
+}
+
+export function createOverride(payload: RelationshipOverrideInput): Promise<OverrideId> {
+  return apiFetch<OverrideId>(`${BASE}/admin/overrides`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateOverride(
+  overrideId: number,
+  payload: RelationshipOverrideInput,
+): Promise<OverrideId> {
+  return apiFetch<OverrideId>(`${BASE}/admin/overrides/${encodeURIComponent(overrideId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Source and namespace ride in the query string, not a body - that is how
+ *  `admin_api.remove_relationship_override` binds them. */
+export function deleteOverride(
+  overrideId: number,
+  sourceId: string,
+  namespace?: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `${BASE}/admin/overrides/${encodeURIComponent(overrideId)}?${overridesQuery(sourceId, namespace)}`,
+    { method: "DELETE" },
+  );
+}
+
 /** Cache keys for `useResource`. Graph and layout are fetched separately because
  *  they change on completely different schedules: the graph on a rebuild, the
  *  layout every time someone drags a table. */
@@ -60,4 +163,6 @@ export const graphKey = (sourceId: string, namespace: string) =>
   `omni-erd:graph:${sourceId}:${namespace}`;
 export const layoutKey = (sourceId: string, namespace: string) =>
   `omni-erd:layout:${sourceId}:${namespace}`;
+export const overridesKey = (sourceId: string, namespace: string) =>
+  `omni-erd:overrides:${sourceId}:${namespace}`;
 export const SOURCES_KEY = "omni-erd:sources";

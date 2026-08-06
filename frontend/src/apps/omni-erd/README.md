@@ -2,25 +2,28 @@
 
 ## Purpose
 Omni-ERD's frontend code: the diagram canvas, the table node, the source picker,
-and the pure functions that turn a `SchemaGraph` into something React Flow draws.
+the admin override editor, and the pure functions that turn a `SchemaGraph` into
+something React Flow draws or a `SELECT` a user can run.
 
 ## Role in OmniView
-Rendered by the routes under `src/app/(shell)/apps/omni-erd/`. Reads
-`/api/omni-erd/*` and nothing else. Belongs to this app alone - eslint's
+Rendered by the two routes under `src/app/(shell)/apps/omni-erd/` - the diagram,
+and the admin-only relationships editor. Reads `/api/omni-erd/*` and nothing else. Belongs to this app alone - eslint's
 `import/no-restricted-paths` zone enforces that no other app reaches in.
 
 ## Contents
 | Item | What it does |
 |------|--------------|
 | `lib/types.ts` | The wire shape, transcribed from `backend/apps/omni_erd/ir.py`. |
-| `lib/api.ts` | The four endpoints, plus the `useResource` cache keys. |
+| `lib/api.ts` | Every endpoint - graph, layout, overrides - plus the `useResource` cache keys. |
 | `lib/toFlow.ts` | `SchemaGraph` → React Flow `{nodes, edges}`. Pure; the one piece with real logic. |
 | `lib/autoLayout.ts` | dagre placement, and `mergeLayout` which lets saved positions win. |
+| `lib/buildSelect.ts` · `lib/dialect.ts` | The `SELECT` over a multi-selection, and the only dialect knowledge here. |
 | `components/ErdCanvas.tsx` | The React Flow surface: grid, controls, minimap, drag persistence. |
 | `components/LazyErdCanvas.tsx` | `next/dynamic` wrapper - React Flow stays out of the initial bundle. |
 | `components/TableNode.tsx` | One table card, with a handle per column. |
 | `components/SourcePicker.tsx` | Which (source, namespace) is on the canvas. |
 | `components/DiagramView.tsx` | Composes the above; owns the two resources. |
+| `components/Overrides*.tsx` | The relationships editor: list, inline form, pickers, status badge. |
 
 ## Conventions & gotchas
 - **The canvas is [React Flow](https://reactflow.dev) (`@xyflow/react`, MIT),
@@ -39,8 +42,10 @@ Rendered by the routes under `src/app/(shell)/apps/omni-erd/`. Reads
 - **Layout saves are debounced and fire only on drag *end*.** A position change
   fires every animation frame while dragging; persisting those would be one PUT
   per frame.
-- **Inferred edges render dashed with a confidence label.** A guess has to look
-  like a guess - see `infer.py` on why `datavault` has no declared edges at all.
+- **`confidence < 1` is what makes an edge look like a guess** - dashed, labelled,
+  tagged in the card - not `origin !== "declared"`. An admin override arrives at
+  confidence 1.0 and must render solid: it is an assertion, not a guess. The
+  predicate is the rule `ir.py` states; origin was only ever a proxy for it.
 - Column type colouring keys off the *normalised* `base`, never `raw`, so the
   legend means the same thing for Postgres and Databricks.
 

@@ -370,6 +370,32 @@ function Canvas({ graph, savedPositions, savedView, onPersist }: ErdCanvasProps)
   }, [applySelection]);
 
   /**
+   * Escape clears the multi-selection - the one keyboard route out, now that a
+   * stray pane click no longer does it. Only listens while there is a
+   * selection to clear, and ignores the key entirely when it originates from a
+   * text field: `SearchBar` already owns Escape for collapsing itself, and
+   * stealing it here would fight that (and any other) input's own handling.
+   */
+  useEffect(() => {
+    if (selectedIds.length === 0) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) {
+        return;
+      }
+      clearSelection();
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [selectedIds.length, clearSelection]);
+
+  /**
    * Hide everything not joined to `entityId`, then frame what is left.
    *
    * Uses React Flow's own `hidden` flag rather than filtering the arrays, so
@@ -487,10 +513,10 @@ function Canvas({ graph, savedPositions, savedView, onPersist }: ErdCanvasProps)
       onNodeClick={(event, node) =>
         event.ctrlKey || event.metaKey ? toggleMulti(node.id) : selectSingle(node.id)
       }
-      onPaneClick={() => {
-        setInspectedId(null);
-        clearSelection();
-      }}
+      // A bare pane click only dismisses the single-table inspector. Clearing
+      // a multi-selection needs a deliberate gesture (Escape, or the flyout's
+      // own close button) - a pan-by-dragging surface is too easy to miss-click.
+      onPaneClick={() => setInspectedId(null)}
       colorMode={dark ? "dark" : "light"}
       fitView
       fitViewOptions={FIT_VIEW}
@@ -542,6 +568,7 @@ function Canvas({ graph, savedPositions, savedView, onPersist }: ErdCanvasProps)
           onClose={clearSelection}
           onRemove={toggleMulti}
           onSelect={selectSingle}
+          onAddBridge={toggleMulti}
         />
       ) : (
         <DetailFlyout

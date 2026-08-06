@@ -46,8 +46,10 @@ BaseType = Literal[
     'uuid',
     'unknown',
 ]
-RelationshipOrigin = Literal['declared', 'inferred_naming']
+RelationshipOrigin = Literal['declared', 'inferred_naming', 'admin_override']
 Cardinality = Literal['many_to_one', 'one_to_one']
+OverrideAction = Literal['join', 'suppress']
+OverrideProblemCode = Literal['unknown_entity', 'unknown_column', 'self_pair']
 
 
 # Matched against the *stem* of a type name - everything before the first '(' or
@@ -217,6 +219,43 @@ class Relationship:
     #: inferred edges; None is fine for declared ones (the constraint name says
     #: it).
     note: str | None = None
+
+
+@dataclass(frozen=True)
+class RelationshipOverride:
+    """One admin's assertion about one pair of entities: draw this join, or don't.
+
+    Highest precedence of the four tiers `infer.py` applies - it outranks even a
+    declared constraint, because the admin is correcting *this diagram*.
+
+    Direction-carrying: `source` is the referencing (many) side as the admin
+    chose it. A `suppress` names the two entities and nothing else, so its ends
+    carry empty `columns`.
+
+    Lives here rather than in `infer.py` because it is dialect-agnostic input to
+    inference, not a product of it: whoever builds one should not have to import
+    the inference engine.
+    """
+
+    id: str
+    source: RelationshipEnd
+    target: RelationshipEnd
+    action: OverrideAction
+    cardinality: Cardinality = 'many_to_one'
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class OverrideProblem:
+    """Why an override could not be applied to the graph in hand.
+
+    An override outlives the catalog it was written against, so a rebuild that
+    renames a table leaves it dangling. `detail` names the specific missing
+    thing, verbatim, because that is what the admin has to go fix.
+    """
+
+    code: OverrideProblemCode
+    detail: str
 
 
 @dataclass(frozen=True)

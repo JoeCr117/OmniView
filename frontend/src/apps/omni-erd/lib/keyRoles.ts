@@ -4,16 +4,24 @@ import type { SchemaGraph } from "./types";
  * Per-column key role, so the card can print a "PK"/"FK" tag without re-scanning
  * the relationship list per row.
  *
- * Two sources feed it, in strict precedence:
+ * Three sources feed it, in strict precedence:
  *  - **Declared constraints** carried on the column (`is_primary_key` /
  *    `is_foreign_key`). These are authoritative - the introspector reads them
  *    straight from `pg_constraint` - so they always win.
+ *  - **Admin overrides**: relationships a human asserted, which arrive at
+ *    confidence 1.0. In `datavault` an override is the *only* signal its columns
+ *    have, and it is a stated fact rather than a guess, so its roles rank with
+ *    the declared band and are not tagged inferred.
  *  - **Inferred relationships**, for schemas that declare no constraints at all.
  *    `datavault` is the whole reason this exists: dbt builds via CTAS, which
  *    carries no keys, so every `is_primary_key`/`is_foreign_key` there is false
  *    and the only signal is the `*SK` naming convention `infer.py` turns into
  *    edges. The *referenced* ("one") end of such an edge is the dimension's key
  *    (PK); the *referencing* ("many") end is a foreign key (FK).
+ *
+ * Confidence, not origin, decides which of the two edge bands a role lands in -
+ * the same `confidence < 1` predicate the dashed edges use - so the canvas and
+ * the card never disagree about whether a relationship is a guess.
  *
  * Declared edges are skipped here on purpose: the column flags already carry
  * their truth exactly, and reading a role off a declared edge would mislabel a
@@ -65,14 +73,15 @@ export function keyRolesByEntity(graph: SchemaGraph): Map<string, EntityKeyRoles
     }
   }
 
-  // Then inferred edges only: referenced end -> PK, referencing end -> FK.
+  // Then the remaining edges: referenced end -> PK, referencing end -> FK.
   for (const relationship of graph.relationships) {
     if (relationship.origin === "declared") continue;
+    const guessed = relationship.confidence < 1;
     for (const column of relationship.target.columns) {
-      assign(relationship.target.entity, column, "pk", true);
+      assign(relationship.target.entity, column, "pk", guessed);
     }
     for (const column of relationship.source.columns) {
-      assign(relationship.source.entity, column, "fk", true);
+      assign(relationship.source.entity, column, "fk", guessed);
     }
   }
 

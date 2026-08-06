@@ -26,8 +26,9 @@ export type BaseType =
 
 export type EntityKind = "table" | "view" | "materialized_view" | "external_table" | "unknown";
 
-/** `declared` came from a real constraint; `inferred_naming` is a guess. */
-export type RelationshipOrigin = "declared" | "inferred_naming";
+/** `declared` came from a real constraint, `inferred_naming` is a guess from
+ *  column naming, and `admin_override` is a human assertion that outranks both. */
+export type RelationshipOrigin = "declared" | "inferred_naming" | "admin_override";
 
 export interface ColumnType {
   raw: string;

@@ -12,7 +12,7 @@ these components. `lib/api.ts` is the only place that names
 ## Contents
 | Item | What it does |
 |------|--------------|
-| `components/` | `UsersTable`, `AdminGate`, `NotConnectedCard`. |
+| `components/` | `UsersTable`, `NotConnectedCard`. |
 | `lib/` | `api.ts` — the typed client for the portal's endpoints. |
 
 ## Conventions & gotchas

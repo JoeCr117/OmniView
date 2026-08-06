@@ -38,6 +38,7 @@ PINNED_TABLES = {
     ('rawdata', 'RawFile'): 'rawdata_rawfile',
     ('adminportal', 'AppAccess'): 'adminportal_appaccess',
     ('omni_erd', 'ErdLayout'): 'omnierd_erdlayout',
+    ('omni_erd', 'ErdRelationshipOverride'): 'omnierd_relationshipoverride',
 }
 
 
