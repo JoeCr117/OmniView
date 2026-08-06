@@ -7,7 +7,10 @@ dialect-neutral rather than a Postgres shape with a general-sounding name.
 **Not wired to a live catalog in the POC.** With no `OMNI_ERD_DATABRICKS_CATALOG`
 set it raises `IntrospectionUnavailable` and the UI renders an empty state. The
 queries below are complete and the row parsing is unit-tested against fixtures;
-what is untested is the warehouse round-trip.
+what is untested is the warehouse round-trip. The `catalog` introspected here is
+not carried on `SourceInfo`, so anything downstream emitting qualified names
+(the frontend's `buildSelect`) can only produce `schema.relation`, not
+`catalog.schema.relation`.
 
 Why UC needs no special-casing: it exposes the ANSI `information_schema` surface
 (`tables`, `columns`, `table_constraints`, `key_column_usage`,

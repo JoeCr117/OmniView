@@ -135,6 +135,9 @@ export function DetailFlyout({
             {KIND_LABEL[detail.entity.kind] ?? KIND_LABEL.unknown} in{" "}
             <span className="font-mono">{detail.entity.namespace}</span>
           </p>
+          <p className="text-[11px] text-muted-foreground">
+            Ctrl-click (⌘-click on Mac) a table to add or remove.
+          </p>
         </>
       }
       footer={

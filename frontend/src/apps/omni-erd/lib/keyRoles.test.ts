@@ -96,6 +96,47 @@ describe("keyRolesByEntity", () => {
     expect(roles.get("datavault.facts")!.get("datesk")).toEqual({ role: "fk", inferred: true });
   });
 
+  // An override is a human's assertion at full confidence, and in datavault it
+  // is the only signal those columns have - so it must not read as a guess,
+  // while an ordinary inferred edge on the same graph still does.
+  it("does not mark roles from an admin override as inferred", () => {
+    const roles = keyRolesByEntity(
+      graph(
+        [
+          entity("facts", [column("datesk"), column("storesk")]),
+          entity("gold_DimDate", [column("datesk")]),
+          entity("gold_DimStore", [column("storesk")]),
+        ],
+        [
+          relationship({
+            id: "rel-override",
+            origin: "admin_override",
+            confidence: 1,
+            note: null,
+            source: { entity: "datavault.facts", columns: ["datesk"] },
+            target: { entity: "datavault.gold_DimDate", columns: ["datesk"] },
+          }),
+          relationship({
+            id: "rel-guess",
+            source: { entity: "datavault.facts", columns: ["storesk"] },
+            target: { entity: "datavault.gold_DimStore", columns: ["storesk"] },
+          }),
+        ],
+      ),
+    );
+
+    expect(roles.get("datavault.gold_DimDate")!.get("datesk")).toEqual({
+      role: "pk",
+      inferred: false,
+    });
+    expect(roles.get("datavault.facts")!.get("datesk")).toEqual({ role: "fk", inferred: false });
+    expect(roles.get("datavault.gold_DimStore")!.get("storesk")).toEqual({
+      role: "pk",
+      inferred: true,
+    });
+    expect(roles.get("datavault.facts")!.get("storesk")).toEqual({ role: "fk", inferred: true });
+  });
+
   // A declared edge carries no per-column role here - the column flags already
   // do, and reading one off the edge would mislabel a referenced *unique* column.
   it("ignores declared edges, leaving unflagged referenced columns roleless", () => {

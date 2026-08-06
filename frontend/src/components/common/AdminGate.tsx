@@ -1,12 +1,17 @@
 "use client";
 
+import { canSeeAdminOnly } from "@/apps/access";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 
 /**
- * Client-side gate around every Admin Portal page: staff (or open mode)
- * pass, everyone else gets a clear denial. Cosmetic only - the API's
- * AdminAuth and the backend page gate are the security boundary.
+ * Client-side gate around a staff-only page: staff (or open mode) pass,
+ * everyone else gets a clear denial. Cosmetic only - the API's AdminAuth is
+ * the security boundary. Do not assume a Django page-level 404 sits behind
+ * this; whether one does depends on the route.
+ *
+ * Cross-app, and therefore here: it wraps every Admin Portal page and
+ * Omni-ERD's Relationships tab.
  */
 export function AdminGate({ children }: { children: React.ReactNode }) {
   const { user, config, loading } = useAuth();
@@ -19,8 +24,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
       </main>
     );
   }
-  const openMode = config !== null && !config.auth_required;
-  if (!openMode && !user?.is_staff) {
+  if (!canSeeAdminOnly(user, config)) {
     return (
       <main className="mx-auto w-full max-w-6xl p-6">
         <p role="alert" className="text-destructive">

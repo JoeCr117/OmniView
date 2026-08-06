@@ -10,7 +10,15 @@ dbt-postgres actually leaves in the database (it quotes relation names but not
 column identifiers).
 """
 
-from ..ir import Column, Entity, KeyConstraint, normalize_type
+from ..ir import (
+    Column,
+    Entity,
+    KeyConstraint,
+    Relationship,
+    RelationshipEnd,
+    RelationshipOverride,
+    normalize_type,
+)
 
 
 def column(name: str, raw_type: str = 'integer', **kwargs) -> Column:
@@ -73,3 +81,47 @@ def dim_category() -> Entity:
         kind='table',
         primary_key=KeyConstraint(name='gold_dimcategory_pkey', columns=('categorysk',)),
     )
+
+
+def override(
+    source: str,
+    source_columns: tuple[str, ...] = (),
+    target: str = '',
+    target_columns: tuple[str, ...] = (),
+    action: str = 'join',
+    **kwargs,
+) -> RelationshipOverride:
+    """An admin's assertion, spelled the way an admin makes one: two entity ids
+    and the columns they typed - not necessarily the casing the catalog uses."""
+    return RelationshipOverride(
+        id=kwargs.pop('id', 'ovr:1'),
+        source=RelationshipEnd(source, tuple(source_columns)),
+        target=RelationshipEnd(target, tuple(target_columns)),
+        action=action,
+        **kwargs,
+    )
+
+
+class FakeIntrospector:
+    """A catalog a test hands in, in place of one a database would report.
+
+    The fast tier has no `pg_class`, so anything reaching `build_graph` needs a
+    stand-in. This one satisfies `introspect.base.SchemaIntrospector` and does
+    nothing else, which leaves the real caching, inference and override
+    resolution to run exactly as they do in production.
+    """
+
+    dialect = 'postgres'
+
+    def __init__(self, entities: list[Entity], declared: list[Relationship] | None = None):
+        self._entities = list(entities)
+        self._declared = list(declared or [])
+
+    def namespaces(self) -> list[str]:
+        return sorted({entity.namespace for entity in self._entities})
+
+    def entities(self, namespace: str) -> list[Entity]:
+        return [entity for entity in self._entities if entity.namespace == namespace]
+
+    def declared_relationships(self, namespace: str) -> list[Relationship]:
+        return list(self._declared)

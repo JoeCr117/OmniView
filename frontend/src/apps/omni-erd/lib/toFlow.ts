@@ -131,6 +131,19 @@ export function toNodes(
   }));
 }
 
+/**
+ * What an edge says about itself, if anything.
+ *
+ * A guess prints how sure it is. An admin override is certain, so it carries no
+ * percentage, but it is a human's assertion rather than a catalog fact and
+ * saying so is the only thing that distinguishes the two on the canvas. A
+ * declared constraint speaks for itself and stays unlabelled.
+ */
+function edgeLabel(relationship: Relationship): string | undefined {
+  if (relationship.confidence < 1) return `${Math.round(relationship.confidence * 100)}%`;
+  return relationship.origin === "admin_override" ? "override" : undefined;
+}
+
 export function toEdges(graph: SchemaGraph, view: ViewState): Edge[] {
   const { rendered } = renderPlan(graph, view);
 
@@ -144,7 +157,7 @@ export function toEdges(graph: SchemaGraph, view: ViewState): Edge[] {
 
     const sourceColumn = relationship.source.columns[0];
     const targetColumn = relationship.target.columns[0];
-    const inferred = relationship.origin !== "declared";
+    const guessed = relationship.confidence < 1;
 
     edges.push({
       id: relationship.id,
@@ -161,11 +174,11 @@ export function toEdges(graph: SchemaGraph, view: ViewState): Edge[] {
       type: "smoothstep",
       animated: false,
       // A guess has to look like a guess.
-      style: inferred
+      style: guessed
         ? { strokeDasharray: "6 4", strokeWidth: 1.5 }
         : { strokeWidth: 1.75 },
       markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-      label: inferred ? `${Math.round(relationship.confidence * 100)}%` : undefined,
+      label: edgeLabel(relationship),
       labelShowBg: true,
       data: {
         origin: relationship.origin,

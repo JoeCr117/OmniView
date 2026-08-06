@@ -38,6 +38,7 @@ export function FlyoutPanel({
   footer,
   onClose,
   closeLabel,
+  flexibleRegion = "body",
   children,
 }: {
   ariaLabel: string;
@@ -46,6 +47,17 @@ export function FlyoutPanel({
   footer?: ReactNode;
   onClose: () => void;
   closeLabel: string;
+  /**
+   * Which region absorbs the height the other does not need, and which one
+   * gives way when the panel hits `MAX_HEIGHT`.
+   *
+   * `"body"` is the ordinary inspector: a scrolling body under a footer sized
+   * to its content. `"footer"` inverts that for a footer holding the thing the
+   * panel is really about - it must then manage its own scrolling, because a
+   * `max-h` on a body that a flex parent is free to shrink does not stop that
+   * body collapsing to a few pixels.
+   */
+  flexibleRegion?: "body" | "footer";
   children: ReactNode;
 }) {
   const reducedMotion = useReducedMotion();
@@ -70,9 +82,25 @@ export function FlyoutPanel({
 
       {/* The scrolling middle. `min-h-0` is what lets it actually scroll inside a
           flex column instead of pushing the footer out of the panel. */}
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div
+        className={cn(
+          "min-h-0 overflow-y-auto",
+          flexibleRegion === "body" ? "flex-1" : "shrink-0",
+        )}
+      >
+        {children}
+      </div>
 
-      {footer && <footer className="border-t px-3 py-2.5">{footer}</footer>}
+      {footer && (
+        <footer
+          className={cn(
+            "border-t px-3 py-2.5",
+            flexibleRegion === "footer" && "flex min-h-0 flex-auto flex-col",
+          )}
+        >
+          {footer}
+        </footer>
+      )}
     </Panel>
   );
 }

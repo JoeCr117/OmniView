@@ -1,12 +1,13 @@
 # frontend/src/apps/omni-erd/components/
 
 ## Purpose
-The diagram UI: the React Flow canvas, the card that represents a table, the
-schema picker, and the view that composes them.
+Omni-ERD's UI: the React Flow canvas and its cards, flyouts and pickers, plus
+the admin-only relationship override editor.
 
 ## Role in OmniView
-Mounted by `src/app/(shell)/apps/omni-erd/diagram/page.tsx`. `DiagramView` owns
-the data (two `useResource` subscriptions); everything else is presentational.
+`DiagramView` is mounted by `diagram/page.tsx` and `OverridesView` by
+`relationships/page.tsx`. Each owns its `useResource` subscriptions; everything
+else here is presentational.
 
 ## Contents
 | Item | What it does |
@@ -18,10 +19,18 @@ the data (two `useResource` subscriptions); everything else is presentational.
 | `TableNode.tsx` | One table: header, per-card mode toggle, and a row per visible column. |
 | `DisplayControls.tsx` | Top-left popover: the three-state column control and Reset view. |
 | `ModePills.tsx` | The segmented all/keys/none control, with a sliding indicator. |
+| `FlyoutPanel.tsx` | The frame both inspectors float in: header, scrolling body, footer. |
 | `DetailFlyout.tsx` | Right-hand inspector: one relation's columns, keys and edges. |
+| `SelectionFlyout.tsx` | The Ctrl-click multi-selection, and the `SELECT` that joins it. |
+| `CopyButton.tsx` | Copy a text block, with the select-the-range fallback. |
 | `FocusBanner.tsx` | "showing N of M" status, and the way out of focus mode. |
 | `SearchBar.tsx` | Top-centre combobox over every table and column name. |
 | `actions.tsx` | Context carrying what a card may ask the canvas to do. |
+| `OverridesView.tsx` | The Relationships page: source picker, list, and the write path. |
+| `OverridesTable.tsx` · `OverridesRow.tsx` | The list, and one row's names, join condition and actions. |
+| `OverridesEditor.tsx` | The inline create/edit form; `lib/overrideDraft`'s `draftProblem` keeps Save disabled until valid. |
+| `OverridesCombobox.tsx` · `OverridesColumnPairs.tsx` | Pick a name from the catalog; pair columns positionally. |
+| `OverridesStatusBadge.tsx` · `OverridesDeleteButton.tsx` | Active/stale with the backend's own detail; delete asked twice. |
 
 ## Conventions & gotchas
 - **Every column renders both a source and a target handle**, hidden with
@@ -50,9 +59,32 @@ the data (two `useResource` subscriptions); everything else is presentational.
   fullscreen (it is already inside `#app-viewport`), and cannot be stranded
   mounted by an interrupted exit animation - a real bug when it was a Radix
   Sheet, which left a click-eating strip over the right of the canvas.
-- **Its height is capped to clear the minimap.** The minimap is bottom-right and
-  ~150px tall plus margin, so `MAX_HEIGHT` stops the panel above it. Move the
-  minimap and that constant should move with it.
+- **A flyout's `ariaLabel` is an E2E locator.** `frontend/e2e/omni-erd.spec.ts`
+  finds both panels by accessible name - `Details for <table>` and
+  `N table(s) selected` - so rewording either breaks the suite, not just a
+  screen reader.
+- **The generated SQL wraps, it never scrolls horizontally.** `FlyoutPanel` is
+  `w-[19rem]` and a namespace-qualified JOIN line is far wider, so each SQL
+  line renders as its own block with a hanging indent (`pre-wrap` plus a
+  negative `text-indent`) rather than one `<pre>` with `overflow-x-auto` - the
+  `ON` clause is the most valuable part of the query and must never sit behind
+  a horizontal scrollbar.
+- **The QUERY block lives in `FlyoutPanel`'s `footer`, not its scrolling body.**
+  The table list is what should scroll when the selection is long; the query
+  and its copy button must stay visible unconditionally, which only the
+  non-scrolling footer slot guarantees.
+- **`navigator.clipboard` is undefined outside a secure context** - plain http on
+  a LAN address is a normal way to reach the dev container - so `CopyButton`
+  falls back to selecting the text and says so in a live region. Do not reduce it
+  to a bare `writeText`.
+- **A disabled button that needs a hover tooltip uses `aria-disabled`, never the
+  native `disabled` attribute.** `buttonVariants` sets `disabled:pointer-events-none`,
+  which makes a `title` unreachable by the mouse; `CopyButton` stays focusable and
+  hoverable and no-ops the click instead.
+- **`FlyoutPanel` has two height modes via the `flexibleRegion` prop.** When set, that
+  region absorbs spare height and scrolls internally; other regions are capped. The default
+  height is capped to clear the minimap at bottom-right (~150px tall plus margin), controlled
+  by `MAX_HEIGHT`; move the minimap and that constant should move with it.
 - **Every overlay is a `<Panel>`, and the corners are spoken for**: display
   top-left, search top-centre, details top-right, controls bottom-left, focus
   status bottom-centre, minimap bottom-right. Two panels at the same position

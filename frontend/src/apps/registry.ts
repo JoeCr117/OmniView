@@ -18,6 +18,12 @@ import { Network, ShieldCheck, Wallet } from "lucide-react";
 export interface AppNavItem {
   href: string;
   label: string;
+  /** Shown only to OmniView admins (is_staff). Cosmetic - the page's API is
+   * what enforces it. Deliberately no `id` field on this interface:
+   * backend/shell/tests/test_registry.py greps `id: "..."` out of this file to
+   * compare app ids across the two registries, and a nav item carrying one
+   * would read as a phantom app. */
+  adminOnly?: boolean;
 }
 
 export interface AppDefinition {
@@ -57,7 +63,10 @@ export const APPS: readonly AppDefinition[] = [
       "Entity-relationship diagrams for the databases behind OmniView, drawn from live catalog metadata.",
     icon: Network,
     basePath: "/apps/omni-erd/diagram",
-    navItems: [{ href: "/apps/omni-erd/diagram", label: "Diagram" }],
+    navItems: [
+      { href: "/apps/omni-erd/diagram", label: "Diagram" },
+      { href: "/apps/omni-erd/relationships", label: "Relationships", adminOnly: true },
+    ],
   },
   {
     id: "admin-portal",

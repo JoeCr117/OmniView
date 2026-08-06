@@ -1,4 +1,4 @@
-import { AdminGate } from "@/apps/admin-portal/components/AdminGate";
+import { AdminGate } from "@/components/common/AdminGate";
 import { AppSubnav } from "@/components/shell/AppSubnav";
 
 export default function AdminPortalLayout({ children }: { children: React.ReactNode }) {

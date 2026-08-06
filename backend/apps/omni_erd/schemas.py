@@ -11,6 +11,7 @@ own edge type already calls them source and target, so the mapper on the other
 side stays a rename-free copy.
 """
 
+from datetime import datetime
 from typing import Literal
 
 from ninja import Schema
@@ -130,3 +131,85 @@ class LayoutIn(Schema):
     #: Optional so an older client - or a save that only moved a table - still
     #: validates. Absent means "unchanged", which `save_layout` honours.
     view_state: ViewStateIn | None = None
+
+
+#: What an admin may assert about a pair of entities. Mirrors
+#: `ir.py:OverrideAction`. A Literal, like ColumnMode, so an unknown action is a
+#: 422 at the edge instead of a string every reader has to defend against.
+OverrideAction = Literal['join', 'suppress']
+
+#: Mirrors `ir.py:Cardinality`.
+OverrideCardinality = Literal['many_to_one', 'one_to_one']
+
+#: 'active', or the `ir.py:OverrideProblemCode` saying why the override does not
+#: fit the catalog as it stands. Derived on every read, never stored.
+OverrideStatus = Literal['active', 'unknown_entity', 'unknown_column', 'self_pair']
+
+
+class RelationshipOverrideOut(Schema):
+    """One stored override, keyed exactly as `services.list_overrides` emits it.
+
+    Directed, not canonical: `source` is the referencing (many) side the admin
+    chose. How the row orders its pair is storage's business, and the admin
+    reading this list should see back the assertion they made.
+
+    `status` and `detail` are the derived pair - the code to switch on, and the
+    sentence naming the table or column that went missing. Both are recomputed
+    against the catalog per read.
+    """
+
+    id: int
+    #: The `ovr:<id>` this override draws as in the graph, so a row in this list
+    #: can be matched to the edge on the canvas.
+    edge_id: str
+    source_id: str
+    namespace: str
+    source_entity: str
+    source_columns: list[str]
+    target_entity: str
+    target_columns: list[str]
+    action: OverrideAction
+    cardinality: OverrideCardinality
+    note: str
+    status: OverrideStatus
+    #: '' when active; otherwise names what is missing, verbatim.
+    detail: str
+    updated_at: datetime
+    #: None when the row was written with OMNIVIEW_AUTH_REQUIRED off, or when
+    #: the user who wrote it has since been deleted.
+    updated_by: str | None
+
+
+class RelationshipOverrideIn(Schema):
+    """An admin's assertion, as they make it: directed, un-normalised.
+
+    `services.save_override` is what orders the pair, validates the column
+    pairing and refuses a self-join - so this schema constrains only what a
+    *type* can constrain, and nothing here duplicates a service rule.
+    """
+
+    source_id: str
+    #: Absent means the source's first namespace, which `services` resolves.
+    namespace: str | None = None
+    #: The referencing (many) side.
+    source_entity: str
+    #: Paired positionally with `target_columns`; both empty when suppressing.
+    source_columns: list[str] = []
+    #: The referenced (one) side.
+    target_entity: str
+    target_columns: list[str] = []
+    action: OverrideAction
+    cardinality: OverrideCardinality = 'many_to_one'
+    note: str = ''
+
+
+class OverrideIdOut(Schema):
+    """Which row a write landed on - the whole of what a write can honestly say.
+
+    Not the full `RelationshipOverrideOut`: `status` is only derivable against a
+    live catalog, so returning a row here would either re-introspect on every
+    write or ship a status field nobody computed. The client refetches the list,
+    which is the one place that answer is real.
+    """
+
+    id: int

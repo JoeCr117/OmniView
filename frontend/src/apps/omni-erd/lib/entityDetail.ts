@@ -100,9 +100,10 @@ export function entityDetail(graph: SchemaGraph, entityId: string): EntityDetail
   };
 }
 
-/** How an inferred edge's confidence reads in the panel. Declared edges have no
- *  confidence worth showing - they are facts, not guesses. */
+/** How an inferred edge's confidence reads in the panel. Anything at full
+ *  confidence - a declared constraint, or an admin override - has none worth
+ *  showing: it is an assertion, not a guess. */
 export function confidenceLabel(related: RelatedEntity): string | null {
-  if (related.origin === "declared") return null;
+  if (related.confidence >= 1) return null;
   return `${Math.round(related.confidence * 100)}% confident`;
 }

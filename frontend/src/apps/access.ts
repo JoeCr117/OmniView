@@ -20,3 +20,17 @@ export function visibleApps(
   if (user.is_staff) return APPS;
   return APPS.filter((app) => !app.adminOnly && user.app_ids.includes(app.id));
 }
+
+/**
+ * Whether this viewer may see admin-only surfaces *inside* an app they can
+ * already open - the same open-mode / is_staff rule `visibleApps` applies to
+ * whole apps. Like that filter, this is cosmetic UX; the endpoints behind those
+ * surfaces carry AdminAuth and are the security boundary.
+ */
+export function canSeeAdminOnly(
+  user: AuthUser | null,
+  config: AuthConfig | null,
+): boolean {
+  if (config && !config.auth_required) return true;
+  return Boolean(user?.is_staff);
+}

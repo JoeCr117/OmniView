@@ -17,6 +17,7 @@ rules and defers to `ARCHITECTURE.md` for the full contract.
 | `ARCHITECTURE.md` | The structure contract: what lives where, why Django app labels are pinned, how the app registry works, and the checklist for adding a new OmniView app. Read before moving code between packages. |
 | `DEPLOYMENT.md` | The runbook: running the app, every environment variable, authentication setup, the Databricks/Lakebase deployment and its failure modes, and the test tiers. |
 | `HANDOFF.md` | The working state: what exists, current invariants, known issues, and outstanding tasks. Read this first when picking the project up cold. |
+| `HANDOFF-omni-erd-enhancements.md` | Temporary feature-scoped handoff for the `feature/omni-erd-enhancements` branch, kept separate only because a second feature branch was in flight and both editing `HANDOFF.md` would have conflicted. Folds into `HANDOFF.md` and is deleted at merge — this is not a per-feature convention. |
 | `ARTIFACTS.md` | The Manifest of Artifacts: every resource the project creates (containers, images, volumes, databases, schemas, tables, views, roles, users, build output), plus what is protected from deletion and what is recoverable. Generated, not hand-edited — see the `generate-artifact-manifest` skill; consumed by the `teardown` skill. |
 
 ## Conventions & gotchas

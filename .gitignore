@@ -57,6 +57,9 @@ deploy/databricks/databricks_manifest.json
 # deploy/databricks/app.example.yaml is the tracked template.
 deploy/databricks/app.yaml
 
+# Per-agent working notes, not part of the source tree.
+.claude/agent-memory/
+
 # dbt's per-machine anonymous-usage id (local state)
 pipelines/expense_tracker/dbt/.user.yml
 
