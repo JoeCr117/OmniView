@@ -17,6 +17,16 @@ description: Add a new financial institution to the ExpenseTracker pipeline — 
    `pipelines/expense_tracker/dbt/models/*/<NewBank>/`, following the Golden1 folder as a template,
    and add the new `stg_*` tables to a sources file under `0-stg`.
 
+A bank's CSV export format is not necessarily stable over time. If the bank has emitted more than
+one layout, declare each layout and detect which one a file uses from that file's header, then
+conform it to a single target shape **before** concatenating an account's files —
+`banks/all_banks/golden1_schema.py` is the worked example. Two rules from that build generalize:
+
+- **Resolve every column by name, never by position.** Golden1's v1 and v2 money columns are
+  order-inverted, so a positional read swaps every debit and credit while still passing a shape test.
+- **An unrecognized header must raise, not be guessed at**, so a new export forces a declaration
+  instead of silently losing a column.
+
 `bank_factory` raises on an unregistered name, so step 3 is what makes the new subclass reachable.
 See `pipelines/expense_tracker/banks/bank.py` for the base class contract and
 `banks/all_banks/golden1.py` as the reference implementation.
