@@ -7,6 +7,7 @@ DJANGO_SETTINGS_MODULE env var.
 
 import os
 from pathlib import Path
+from typing import Any
 
 from shell.registry import DJANGO_APPS
 
@@ -238,7 +239,9 @@ if AZURE_CLIENT_ID:
 # ---------------------------------------------------------------------------
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
-LOGGING = {
+#: Annotated because the block below reaches into it: a bare literal infers its
+#: values as `object`, which is not indexable or appendable.
+LOGGING: dict[str, Any] = {
     'version': 1,
     'disable_existing_loggers': False,
     'filters': {

@@ -36,7 +36,7 @@ test("admin sees the portal and manages access", async ({ page }) => {
   await expect(grantSwitch).toBeChecked();
 });
 
-test("non-admin gets a denial on direct admin-portal API access", async ({ page, request }) => {
+test("non-admin gets a denial on direct admin-portal API access", async ({ page }) => {
   await logIn(page);
   const response = await page.request.get("/api/admin-portal/users");
   expect(response.status()).toBe(403);

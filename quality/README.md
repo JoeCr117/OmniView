@@ -79,6 +79,20 @@ uv run --with schemathesis schemathesis run http://127.0.0.1:8100/api/openapi.js
   --exclude-path '/api/auth/logout' --exclude-path '/api/auth/login' --max-examples 20
 ```
 
+## Known debt, held by a ratchet
+
+**`react-hooks/set-state-in-effect` — 7 warnings.** The rule arrived with eslint-config-next 16.3.1
+and flags two legitimate patterns already in the codebase: the next-themes hydration guard
+(`useEffect(() => setMounted(true), [])`) and load-on-mount data fetching. Replacing them is a
+refactor, not a lint fix, so the rule is demoted to a warning in `frontend/eslint.config.mjs` and
+`npm run lint` runs `--max-warnings 7`. **The number may only go down.** Sites:
+
+- `src/components/shell/UserMenu.tsx:39` and `src/app/(shell)/apps/admin-portal/api-docs/page.tsx:16`
+  — hydration guards
+- `src/app/(shell)/apps/expense-tracker/raw-csvs/page.tsx:47,63,75` and
+  `.../budget-map/page.tsx:127` — load-on-mount
+- `src/app/(auth)/login/page.tsx:66` — `setRedirecting` before a hard navigation
+
 ## Tools deliberately not adopted
 
 - **`vulture`** — 350 findings, effectively zero actionable. Django/Ninja/Pydantic declarative code
