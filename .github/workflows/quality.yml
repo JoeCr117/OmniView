@@ -89,6 +89,11 @@ jobs:
         run: npm run build
         working-directory: frontend
 
+      # Bytes a user downloads, not bytes on disk. Must follow the build.
+      - name: bundle size budget
+        run: npm run size
+        working-directory: frontend
+
   duplication:
     runs-on: ubuntu-latest
     steps:

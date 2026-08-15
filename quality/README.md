@@ -61,6 +61,30 @@ uv run --with pytest-randomly pytest -q -p randomly --randomly-seed=12345
 uv run --with pytest-randomly pytest -q -p randomly --randomly-seed=98765
 ```
 
+### Pipeline determinism
+
+Runs the ETL twice from identical sources and compares a content hash of every relation it
+builds. Refuses to run unless `PGDATABASE=omniview_e2e`, because a rebuild drops the whole
+datavault schema. The E2E fixture CSVs are 3-column web-layer stubs that `detect_schema`
+rejects, so seed from the synthetic tree instead:
+
+```powershell
+docker compose -f docker/docker-compose.yml up -d db
+cd backend; $env:DJANGO_SETTINGS_MODULE='config.settings.e2e'
+uv run python manage.py e2e_bootstrap
+uv run python manage.py import_banks_dir ..\docs\examples\Banks
+cd ..
+$env:PGDATABASE='omniview_e2e'
+uv run python quality/determinism_check.py
+```
+
+### Bundle size
+
+`npm run size` measures **brotli-compressed** bytes — what a user downloads, not what sits on
+disk (1,987 KB raw of JS compresses to 518 kB). Needs `npm run build` first. Budgets are total
+per file type because Next content-hashes chunk filenames, so per-chunk budgets cannot be
+written down.
+
 ### API fuzzing
 
 Needs the E2E harness. Three things bite, all documented in the audit's "Tool fitness" section:
