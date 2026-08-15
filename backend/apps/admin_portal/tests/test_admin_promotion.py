@@ -5,7 +5,6 @@ OMNIVIEW_ADMIN_EMAILS auto-promotion via ForwardedEmailBackend.configure_user
 
 import pytest
 from django.contrib.auth.models import User
-
 from shell.remote_auth import ForwardedEmailBackend
 
 pytestmark = pytest.mark.django_db

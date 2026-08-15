@@ -15,13 +15,13 @@ reasons.
 """
 
 import pytest
+from config.api import api
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from ninja.utils import normalize_path
+from shell.security import AdminAuth, AppAccessAuth
 
 from apps.admin_portal.models import AppAccess
-from config.api import api
-from shell.security import AdminAuth, AppAccessAuth
 
 from .. import sources as sources_module
 from ..models import ErdRelationshipOverride

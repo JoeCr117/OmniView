@@ -96,4 +96,3 @@ class Command(BaseCommand):
             # FORCE kicks lingering connections from a crashed previous run.
             conn.execute(f'DROP DATABASE IF EXISTS "{e2e_name}" WITH (FORCE)')
             conn.execute(f'CREATE DATABASE "{e2e_name}"')
-

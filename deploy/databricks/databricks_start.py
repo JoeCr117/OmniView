@@ -43,11 +43,17 @@ def main() -> None:
     os.execv(
         python,
         [
-            python, '-m', 'gunicorn', 'config.wsgi:application',
-            '--bind', f'0.0.0.0:{port}',
+            python,
+            '-m',
+            'gunicorn',
+            'config.wsgi:application',
+            '--bind',
+            f'0.0.0.0:{port}',
             # The rebuild endpoint runs the full pipeline in-request.
-            '--timeout', '600',
-            '--access-logfile', '-',
+            '--timeout',
+            '600',
+            '--access-logfile',
+            '-',
         ],
     )
 

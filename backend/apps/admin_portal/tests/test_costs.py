@@ -67,9 +67,7 @@ class TestCostsOverview:
 
     def test_empty_result_is_zeroes(self):
         data = services.costs_overview(_fake_client(rows=[]), days=7)
-        assert data['kpis'] == {
-            'days': 7, 'total_dbus': 0, 'list_cost_usd': 0, 'top_sku': None
-        }
+        assert data['kpis'] == {'days': 7, 'total_dbus': 0, 'list_cost_usd': 0, 'top_sku': None}
         assert data['daily'] == [] and data['by_sku'] == []
 
     def test_missing_warehouse_raises_not_connected(self, settings):

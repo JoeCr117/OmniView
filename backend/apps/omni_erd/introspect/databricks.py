@@ -34,7 +34,7 @@ identity only.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ..ir import (
     Column,
@@ -308,4 +308,4 @@ def parse_relationships(namespace: str, foreign_key_rows: list) -> list[Relation
 
 
 def captured_at() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

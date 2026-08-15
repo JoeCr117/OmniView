@@ -56,6 +56,4 @@ def test_entity_ids_are_namespace_qualified():
     """The id is what a saved layout keys on, so it must not collide across
     schemas holding a same-named table."""
     assert Entity.make_id('datavault', 'gold_DimDate') == 'datavault.gold_DimDate'
-    assert Entity.make_id('omniview', 'gold_DimDate') != Entity.make_id(
-        'datavault', 'gold_DimDate'
-    )
+    assert Entity.make_id('omniview', 'gold_DimDate') != Entity.make_id('datavault', 'gold_DimDate')

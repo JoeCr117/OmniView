@@ -4,10 +4,15 @@
 ; half of the same rules is enforced by frontend/eslint.config.mjs; until this
 ; file existed the Python half was enforced by nothing.
 ;
-;   uv run lint-imports
+;   $env:PYTHONPATH = "$PWD;$PWD\backend"
+;   uv run lint-imports --config .importlinter
 ;
 ; Root packages match pytest's pythonpath (backend + repo root), so `config`,
 ; `shell`, `apps` and `pipelines` all resolve the way they do at runtime.
+;
+; Every `ignore_imports` line below is a documented, deliberate edge - not a
+; violation being silenced. Each names why. A new edge that is not on these
+; lists fails the contract, which is the whole point.
 
 [importlinter]
 root_packages =
@@ -26,6 +31,11 @@ source_modules =
     apps
 forbidden_modules =
     pipelines
+ignore_imports =
+    ; The schema contract is asserted from BOTH sides on purpose - it is the one
+    ; test that proves the web layer and the pipeline still agree on table names.
+    ; CLAUDE.md names it as the tripwire.
+    config.tests.test_schema_contract -> pipelines.expense_tracker.banks.source
 
 [importlinter:contract:pipelines-backend-separation]
 name = The pipelines never import the backend (ARCHITECTURE.md:23)
@@ -44,11 +54,35 @@ modules =
     apps.expense_tracker
     apps.omni_erd
     apps.admin_portal
+ignore_imports =
+    ; Indirect, through the two shell modules that are allowed to know apps -
+    ; see the contract below, which is where that permission is actually pinned.
+    ; Without these the independence contract re-reports the same two edges as
+    ; a path between every pair of apps.
+    shell.registry -> apps.**
+    shell.security -> apps.admin_portal.models
+    ; Test setup crosses apps by necessity: an Omni-ERD auth test needs a real
+    ; AppAccess row, which only the Admin Portal defines. No runtime coupling.
+    apps.*.tests.* -> apps.**
+    apps.*.tests.* -> shell.registry
 
-[importlinter:contract:shell-knows-no-apps]
-name = The shell reaches an app only through its declaration, never by import
+[importlinter:contract:only-declared-seams-know-apps]
+name = Only the registry, the access check and the E2E bootstrap may import an app
 type = forbidden
 source_modules =
     shell
 forbidden_modules =
     apps
+ignore_imports =
+    ; The declared seam. Registering an app is one import here and one line in
+    ; OMNIVIEW_APPS; everything else in the backend derives from it.
+    shell.registry -> apps.**
+    ; Deny-by-default access control. AppAccess is the Admin Portal's model and
+    ; the shell's gate reads it, deliberately and lazily (shell/security.py:71
+    ; explains why: this module loads before the app registry is ready).
+    shell.security -> apps.admin_portal.models
+    ; E2E-only, and imported inside handle() because the deploy bundle prunes
+    ; tests/. Seeding an app's data is the app's business; this only asks.
+    shell.management.commands.e2e_bootstrap -> apps.**
+    ; The router's own tests need concrete managed/unmanaged models to route.
+    shell.tests.* -> apps.**

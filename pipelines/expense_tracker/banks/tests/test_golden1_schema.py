@@ -25,8 +25,14 @@ from pipelines.expense_tracker.banks.all_banks.golden1_schema import (
 from .conftest import V2_HEADER
 
 V1_HEADER = (
-    'Date', 'ReferenceNo.', 'Type', 'Description',
-    'Debit', 'Credit', 'CheckNumber', 'Balance',
+    'Date',
+    'ReferenceNo.',
+    'Type',
+    'Description',
+    'Debit',
+    'Credit',
+    'CheckNumber',
+    'Balance',
 )
 
 
@@ -40,8 +46,7 @@ class TestDeclaredSchemas:
         for schema in GOLDEN1_CSV_SCHEMAS:
             for legacy_name, source in schema.sources.items():
                 assert not isinstance(source, int), (
-                    f'{schema.version}.sources[{legacy_name!r}] is a positional '
-                    f'index: {source!r}'
+                    f'{schema.version}.sources[{legacy_name!r}] is a positional index: {source!r}'
                 )
 
     def test_v2_type_is_derived_from_money_columns_not_copied(self):
@@ -79,7 +84,7 @@ class TestDeclaredSchemas:
     def test_match_keys_are_pairwise_distinct(self):
         keys = [schema.match_key for schema in GOLDEN1_CSV_SCHEMAS]
         for i, left in enumerate(keys):
-            for right in keys[i + 1:]:
+            for right in keys[i + 1 :]:
                 assert left != right
 
 
@@ -106,8 +111,16 @@ class TestDetectSchema:
         assert spec.version == 'golden1.v2'
 
     def test_bom_prefixed_and_whitespace_padded_header_still_detects(self):
-        messy = ('﻿Date', ' ReferenceNo. ', 'Type', 'Description',
-                  'Debit', 'Credit', 'CheckNumber', 'Balance')
+        messy = (
+            '﻿Date',
+            ' ReferenceNo. ',
+            'Type',
+            'Description',
+            'Debit',
+            'Credit',
+            'CheckNumber',
+            'Balance',
+        )
         spec = detect_schema(messy, where='test')
         assert spec.version == 'golden1.v1'
 
@@ -130,10 +143,7 @@ class TestDetectSchema:
         that must never appear in it, even indirectly.
         """
         secret_description = 'ACME PSYCHIATRIC ASSOCIATES PMT'
-        csv_text = (
-            'Date,Nonsense\n'
-            f'01/01/2024,{secret_description}\n'
-        )
+        csv_text = f'Date,Nonsense\n01/01/2024,{secret_description}\n'
         header = sniff_header(csv_text)
         with pytest.raises(UnknownCsvSchemaError) as exc_info:
             detect_schema(header, where='Golden1/Checking/rows.csv')
@@ -143,9 +153,7 @@ class TestDetectSchema:
 
     def test_normalize_header_name_folds_bom_whitespace_and_case(self):
         assert normalize_header_name('﻿ Date ') == 'date'
-        assert normalize_header_name('AccountType') != normalize_header_name(
-            'Account Type'
-        )
+        assert normalize_header_name('AccountType') != normalize_header_name('Account Type')
 
 
 class TestRowOneRedactionInErrorMessages:
@@ -299,9 +307,7 @@ class TestAmbiguousSchema:
     a colliding pair - hence the monkeypatch rather than a real fixture.
     """
 
-    def test_two_schemas_sharing_a_column_set_raise_ambiguous_naming_both(
-        self, monkeypatch
-    ):
+    def test_two_schemas_sharing_a_column_set_raise_ambiguous_naming_both(self, monkeypatch):
         v2 = next(s for s in GOLDEN1_CSV_SCHEMAS if s.version == 'golden1.v2')
         clone = Golden1CsvSchema(
             version='golden1.v2-clone',
@@ -310,9 +316,7 @@ class TestAmbiguousSchema:
             date_format=v2.date_format,
             row_order=v2.row_order,
         )
-        monkeypatch.setattr(
-            golden1_schema_module, 'GOLDEN1_CSV_SCHEMAS', (v2, clone)
-        )
+        monkeypatch.setattr(golden1_schema_module, 'GOLDEN1_CSV_SCHEMAS', (v2, clone))
 
         with pytest.raises(AmbiguousCsvSchemaError) as exc_info:
             golden1_schema_module.detect_schema(V2_HEADER, where='test')

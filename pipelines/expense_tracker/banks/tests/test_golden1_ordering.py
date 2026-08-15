@@ -59,10 +59,12 @@ def real_fixture_source(account_name: str) -> BankSource:
     return BankSource(
         name='Golden1',
         budget_map_yaml=_UNUSED_BUDGET_MAP_YAML,
-        accounts={account_name: [
-            ('2024.csv', _fixture_text(account_name, '2024.csv')),
-            ('2026.csv', _fixture_text(account_name, '2026.csv')),
-        ]},
+        accounts={
+            account_name: [
+                ('2024.csv', _fixture_text(account_name, '2024.csv')),
+                ('2026.csv', _fixture_text(account_name, '2026.csv')),
+            ]
+        },
     )
 
 
@@ -100,7 +102,7 @@ def assert_ordering_invariant(
 
     offset = 0
     for schema_version, descriptions in file_blocks:
-        block = df.iloc[offset:offset + len(descriptions)]
+        block = df.iloc[offset : offset + len(descriptions)]
         actual_schemas = block['SourceSchema'].unique().tolist()
         assert actual_schemas == [schema_version], (
             f'expected a contiguous block of {len(descriptions)} '
@@ -110,15 +112,13 @@ def assert_ordering_invariant(
         )
         assert block['Description'].tolist() == descriptions, (
             f'{schema_version} block (rows {offset}..{offset + len(descriptions) - 1}) '
-            f'is not in this file\'s chronological order.\n'
+            f"is not in this file's chronological order.\n"
             f'expected: {descriptions}\n'
             f'actual:   {block["Description"].tolist()}'
         )
         offset += len(descriptions)
 
-    assert offset == len(df), (
-        f'file_blocks describe {offset} row(s) but the frame has {len(df)}'
-    )
+    assert offset == len(df), f'file_blocks describe {offset} row(s) but the frame has {len(df)}'
 
     if check_balance_continuity:
         money = (df['Debit'].fillna(0) + df['Credit'].fillna(0)).round(2)
@@ -139,45 +139,94 @@ def assert_ordering_invariant(
 #: would get wrong.
 CHRONOLOGICAL_ORDER_BY_ACCOUNT: dict[str, list[tuple[str, list[str]]]] = {
     'CreditCard': [
-        ('golden1.v1', [
-            'NORTHBEAM COFFEE #12', 'FUELWORKS 448', 'GREENFIELD MKT 209',
-            'BLUE LANTERN SUSHI', 'AUTOMATIC PAYMENT', 'STREAMCO MONTHLY',
-            'Interest Charge',
-        ]),
-        ('golden1.v2', [
-            'Interest Charge', 'LAKEVIEW HARDWARE', 'SPARKLE WASH #3',
-            'GRAND CINEMA 14', 'CEDAR AUTO REPAIR', 'NORTHBEAM COFFEE #12',
-            'FUELWORKS 448', 'GREENFIELD MKT 209', 'ROUNDHOUSE PIZZA #7',
-            'AUTOMATIC PAYMENT', 'BLUE LANTERN SUSHI', 'STREAMCO MONTHLY',
-        ]),
+        (
+            'golden1.v1',
+            [
+                'NORTHBEAM COFFEE #12',
+                'FUELWORKS 448',
+                'GREENFIELD MKT 209',
+                'BLUE LANTERN SUSHI',
+                'AUTOMATIC PAYMENT',
+                'STREAMCO MONTHLY',
+                'Interest Charge',
+            ],
+        ),
+        (
+            'golden1.v2',
+            [
+                'Interest Charge',
+                'LAKEVIEW HARDWARE',
+                'SPARKLE WASH #3',
+                'GRAND CINEMA 14',
+                'CEDAR AUTO REPAIR',
+                'NORTHBEAM COFFEE #12',
+                'FUELWORKS 448',
+                'GREENFIELD MKT 209',
+                'ROUNDHOUSE PIZZA #7',
+                'AUTOMATIC PAYMENT',
+                'BLUE LANTERN SUSHI',
+                'STREAMCO MONTHLY',
+            ],
+        ),
     ],
     'FreeChecking': [
-        ('golden1.v1', [
-            'EXAMPLE EMPLOYER (PAYROLL)', 'EXAMPLE APTS', 'EXAMPLE WIRELESS',
-            'EXAMPLE BROADBAND', 'to share 1', 'Withdrawal',
-            'EXAMPLE EMPLOYER (PAYROLL)', 'EXAMPLE AUTO INS',
-        ]),
-        ('golden1.v2', [
-            'ATM FEE DRAFT WITHDRAWAL Trace #7712', 'LANTERN LIGHTING CO',
-            'EXAMPLE EMPLOYER (PAYROLL)', 'QUICKSTOP #221',
-            'HOMESTEAD SUPPLY CO', 'EXAMPLE APTS', 'Withdrawal',
-            'EXAMPLE EMPLOYER (PAYROLL)', 'EXAMPLE AUTO INS',
-            'EXAMPLE WIRELESS', 'EXAMPLE BROADBAND', 'STATEMENT AVAILABLE',
-        ]),
+        (
+            'golden1.v1',
+            [
+                'EXAMPLE EMPLOYER (PAYROLL)',
+                'EXAMPLE APTS',
+                'EXAMPLE WIRELESS',
+                'EXAMPLE BROADBAND',
+                'to share 1',
+                'Withdrawal',
+                'EXAMPLE EMPLOYER (PAYROLL)',
+                'EXAMPLE AUTO INS',
+            ],
+        ),
+        (
+            'golden1.v2',
+            [
+                'ATM FEE DRAFT WITHDRAWAL Trace #7712',
+                'LANTERN LIGHTING CO',
+                'EXAMPLE EMPLOYER (PAYROLL)',
+                'QUICKSTOP #221',
+                'HOMESTEAD SUPPLY CO',
+                'EXAMPLE APTS',
+                'Withdrawal',
+                'EXAMPLE EMPLOYER (PAYROLL)',
+                'EXAMPLE AUTO INS',
+                'EXAMPLE WIRELESS',
+                'EXAMPLE BROADBAND',
+                'STATEMENT AVAILABLE',
+            ],
+        ),
     ],
     'MoneyMarket': [
         ('golden1.v1', ["Online Transfer 'STD'", 'Mobile Deposit', 'EXAMPLE BROKERAGE']),
-        ('golden1.v2', [
-            "Online Transfer 'STD'", 'Mobile Deposit', 'EXAMPLE BROKERAGE',
-            "Online Transfer 'STD'", 'Mobile Deposit', 'EXAMPLE BROKERAGE',
-        ]),
+        (
+            'golden1.v2',
+            [
+                "Online Transfer 'STD'",
+                'Mobile Deposit',
+                'EXAMPLE BROKERAGE',
+                "Online Transfer 'STD'",
+                'Mobile Deposit',
+                'EXAMPLE BROKERAGE',
+            ],
+        ),
     ],
     'Savings': [
         ('golden1.v1', ['from share 1', 'Checking Deposit', 'to share 0']),
-        ('golden1.v2', [
-            'Checking Deposit', 'to share 0', 'from share 1',
-            'Checking Deposit', 'to share 0',
-        ]),
+        (
+            'golden1.v2',
+            [
+                'Checking Deposit',
+                'to share 0',
+                'from share 1',
+                'Checking Deposit',
+                'to share 0',
+            ],
+        ),
     ],
 }
 
@@ -218,10 +267,20 @@ def _build_large_single_file_creditcard_csv() -> tuple[str, list[str]]:
             n = date_index * _R3_ROWS_PER_DATE + row_index
             description = f'EXAMPLE MERCHANT {n:02d}'
             debit = -round(1.01 * (n + 1), 2)
-            lines.append(','.join([
-                date, str(reference), 'PURCHASE', description,
-                f'{debit:.2f}', '', '', '',
-            ]))
+            lines.append(
+                ','.join(
+                    [
+                        date,
+                        str(reference),
+                        'PURCHASE',
+                        description,
+                        f'{debit:.2f}',
+                        '',
+                        '',
+                        '',
+                    ]
+                )
+            )
             descriptions.append(description)
             reference += 1
     return '\n'.join(lines) + '\n', descriptions

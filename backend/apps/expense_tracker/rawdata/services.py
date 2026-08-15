@@ -19,7 +19,7 @@ from ninja.errors import HttpError
 
 from .models import RawFile
 
-CSV_SUFFIX = ".csv"
+CSV_SUFFIX = '.csv'
 
 
 def _require_bank(bank: str) -> None:
@@ -27,15 +27,12 @@ def _require_bank(bank: str) -> None:
         raise HttpError(404, f"Unknown bank '{bank}'")
 
 
-def list_accounts(bank: str = "Golden1") -> list[str]:
+def list_accounts(bank: str = 'Golden1') -> list[str]:
     _require_bank(bank)
     # order_by() clears Meta.ordering, whose columns would otherwise be added
     # to the SELECT and defeat DISTINCT (one row per file, not per account).
     return sorted(
-        RawFile.objects.filter(bank=bank)
-        .order_by()
-        .values_list("account", flat=True)
-        .distinct()
+        RawFile.objects.filter(bank=bank).order_by().values_list('account', flat=True).distinct()
     )
 
 
@@ -44,10 +41,10 @@ def _require_account(bank: str, account: str) -> None:
         raise HttpError(404, f"Unknown account '{account}' for bank '{bank}'")
 
 
-def list_csv_files(account: str, bank: str = "Golden1") -> list[str]:
+def list_csv_files(account: str, bank: str = 'Golden1') -> list[str]:
     _require_account(bank, account)
     return sorted(
-        RawFile.objects.filter(bank=bank, account=account).values_list("filename", flat=True)
+        RawFile.objects.filter(bank=bank, account=account).values_list('filename', flat=True)
     )
 
 
@@ -56,11 +53,11 @@ def _safe_csv_name(filename: str) -> str:
     # can't smuggle path separators into the stored name.
     safe_name = Path(filename).name
     if not safe_name.lower().endswith(CSV_SUFFIX):
-        raise HttpError(422, "Only .csv files are supported")
+        raise HttpError(422, 'Only .csv files are supported')
     return safe_name
 
 
-def read_csv_rows(account: str, filename: str, bank: str = "Golden1") -> list[dict]:
+def read_csv_rows(account: str, filename: str, bank: str = 'Golden1') -> list[dict]:
     _require_account(bank, account)
     safe_name = _safe_csv_name(filename)
     raw_file = RawFile.objects.filter(bank=bank, account=account, filename=safe_name).first()
@@ -69,22 +66,22 @@ def read_csv_rows(account: str, filename: str, bank: str = "Golden1") -> list[di
     return list(csv.DictReader(io.StringIO(raw_file.content)))
 
 
-def save_uploaded_csv(account: str, filename: str, content: bytes, bank: str = "Golden1") -> str:
+def save_uploaded_csv(account: str, filename: str, content: bytes, bank: str = 'Golden1') -> str:
     _require_account(bank, account)
     safe_name = _safe_csv_name(filename)
 
     try:
-        text = content.decode("utf-8-sig")
+        text = content.decode('utf-8-sig')
     except UnicodeDecodeError as exc:
-        raise HttpError(422, "File is not valid UTF-8 text") from exc
+        raise HttpError(422, 'File is not valid UTF-8 text') from exc
     reader = csv.reader(io.StringIO(text))
     header = next(reader, None)
     if not header or not any(h.strip() for h in header):
-        raise HttpError(422, "CSV file has no header row")
+        raise HttpError(422, 'CSV file has no header row')
 
     duplicate_message = (
         f"'{safe_name}' already exists for {bank}/{account} - rename the file "
-        "or remove the existing one first"
+        'or remove the existing one first'
     )
     if RawFile.objects.filter(bank=bank, account=account, filename=safe_name).exists():
         raise HttpError(409, duplicate_message)

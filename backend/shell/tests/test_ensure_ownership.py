@@ -38,6 +38,10 @@ def test_the_role_name_matches_the_dbt_macros_default():
 
     macro = (
         Path(__file__).resolve().parents[3]
-        / 'pipelines' / 'expense_tracker' / 'dbt' / 'macros' / 'ensure_schema_ownership.sql'
+        / 'pipelines'
+        / 'expense_tracker'
+        / 'dbt'
+        / 'macros'
+        / 'ensure_schema_ownership.sql'
     )
     assert OWNER_ROLE in macro.read_text(encoding='utf-8')

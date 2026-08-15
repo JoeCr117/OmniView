@@ -25,7 +25,7 @@ from ninja.utils import check_csrf
 # Auth events (login/logout/failure) are logged by shell/signals.py via
 # Django's built-in auth signals, which authenticate()/django_login()/
 # django_logout() fire - do not also log them here.
-router = Router(tags=["auth"])
+router = Router(tags=['auth'])
 
 
 class LoginIn(Schema):
@@ -78,48 +78,48 @@ class SessionOut(Schema):
 
 def _enforce_csrf(request):
     if check_csrf(request) is not None:
-        raise HttpError(403, "CSRF check failed")
+        raise HttpError(403, 'CSRF check failed')
 
 
-@router.get("/csrf", auth=None, response={204: None})
+@router.get('/csrf', auth=None, response={204: None})
 @decorate_view(ensure_csrf_cookie)
 def get_csrf(request):
     """Sets the csrftoken cookie so the SPA can send X-CSRFToken headers."""
     return Status(204, None)
 
 
-@router.post("/login", auth=None, response={200: UserOut, 401: ErrorOut})
+@router.post('/login', auth=None, response={200: UserOut, 401: ErrorOut})
 def login(request, payload: LoginIn):
     _enforce_csrf(request)
     user = authenticate(request, username=payload.username, password=payload.password)
     if user is None:
-        return Status(401, {"detail": "Invalid username or password."})
+        return Status(401, {'detail': 'Invalid username or password.'})
     # Rotates the CSRF token: clients must re-fetch /api/auth/csrf afterwards.
     django_login(request, user)
     return Status(200, user)
 
 
-@router.post("/logout", auth=None, response={204: None})
+@router.post('/logout', auth=None, response={204: None})
 def logout(request):
     _enforce_csrf(request)
     django_logout(request)
     return Status(204, None)
 
 
-@router.get("/me", auth=None, response={200: UserOut, 401: ErrorOut})
+@router.get('/me', auth=None, response={200: UserOut, 401: ErrorOut})
 def me(request):
     if not request.user.is_authenticated:
-        return Status(401, {"detail": "Not authenticated."})
+        return Status(401, {'detail': 'Not authenticated.'})
     return Status(200, request.user)
 
 
-@router.get("/config", auth=None, response=ConfigOut)
+@router.get('/config', auth=None, response=ConfigOut)
 def auth_config(request):
     """Public flags the static login page needs before anyone is signed in."""
     return _config_payload()
 
 
-@router.get("/session", auth=None, response=SessionOut)
+@router.get('/session', auth=None, response=SessionOut)
 @decorate_view(ensure_csrf_cookie)
 def session(request):
     """Config + current user + a fresh csrftoken cookie, in one round-trip.
@@ -129,13 +129,13 @@ def session(request):
     login/logout, when only the token needs refreshing).
     """
     user = request.user if request.user.is_authenticated else None
-    return {"config": _config_payload(), "user": user}
+    return {'config': _config_payload(), 'user': user}
 
 
 def _config_payload() -> dict:
     return {
-        "auth_required": settings.OMNIVIEW_AUTH_REQUIRED,
-        "azure_enabled": bool(settings.AZURE_CLIENT_ID),
-        "azure_auto_login": settings.AZURE_AUTO_LOGIN,
-        "sso_managed": settings.SSO_MANAGED,
+        'auth_required': settings.OMNIVIEW_AUTH_REQUIRED,
+        'azure_enabled': bool(settings.AZURE_CLIENT_ID),
+        'azure_auto_login': settings.AZURE_AUTO_LOGIN,
+        'sso_managed': settings.SSO_MANAGED,
     }

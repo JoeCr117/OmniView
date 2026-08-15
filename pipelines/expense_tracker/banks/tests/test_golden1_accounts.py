@@ -35,7 +35,6 @@ from .test_golden1_ordering import (
     CHRONOLOGICAL_ORDER_BY_ACCOUNT,
     _bare_account_frame,
     assert_ordering_invariant,
-    real_fixture_source,
 )
 
 #: The real budget map, reused for every full `Golden1(...)` construction in
@@ -46,8 +45,18 @@ BUDGET_MAP_YAML = (FIXTURES_DIR / 'BudgetMap.yml').read_text(encoding='utf-8-sig
 #: (`DateSK`, `SourceSchema`) and the one `Bank._parse_transactions` adds
 #: (`AccountType`), in the exact order `_parse_transactions` returns them.
 EXPECTED_PARSED_COLUMNS = [
-    'Indx', 'DateSK', 'Date', 'AccountType', 'ReferenceNo.', 'Type',
-    'Description', 'Debit', 'Credit', 'CheckNumber', 'Balance', 'SourceSchema',
+    'Indx',
+    'DateSK',
+    'Date',
+    'AccountType',
+    'ReferenceNo.',
+    'Type',
+    'Description',
+    'Debit',
+    'Credit',
+    'CheckNumber',
+    'Balance',
+    'SourceSchema',
 ]
 
 #: Golden1 v2 column names that must never survive into a parsed frame,
@@ -66,14 +75,18 @@ class TestMixedVersionAccountRowCounts:
 
     @pytest.mark.parametrize('account', sorted(CHRONOLOGICAL_ORDER_BY_ACCOUNT))
     def test_full_account_row_count_equals_sum_of_both_files(self, account):
-        bank = Golden1(BankSource(
-            name='Golden1',
-            budget_map_yaml=BUDGET_MAP_YAML,
-            accounts={account: [
-                ('2024.csv', _fixture_text(account, '2024.csv')),
-                ('2026.csv', _fixture_text(account, '2026.csv')),
-            ]},
-        ))
+        bank = Golden1(
+            BankSource(
+                name='Golden1',
+                budget_map_yaml=BUDGET_MAP_YAML,
+                accounts={
+                    account: [
+                        ('2024.csv', _fixture_text(account, '2024.csv')),
+                        ('2026.csv', _fixture_text(account, '2026.csv')),
+                    ]
+                },
+            )
+        )
         expected = _account_row_count(account, '2024.csv') + _account_row_count(account, '2026.csv')
         assert len(bank.account_data[account]) == expected
 
@@ -112,8 +125,12 @@ class TestNormalizeBeforeConcat:
         df = bank.account_data['Checking']
         assert set(EXPECTED_PARSED_COLUMNS) <= set(df.columns)
         assert set(df.columns) - set(EXPECTED_PARSED_COLUMNS) <= {
-            'CategorySK', 'Label', 'Category', 'CategoryBudget',
-            'SubCategory', 'SubCategoryBudget',
+            'CategorySK',
+            'Label',
+            'Category',
+            'CategoryBudget',
+            'SubCategory',
+            'SubCategoryBudget',
         }
 
     def test_no_v2_source_only_column_name_survives(self):
@@ -140,14 +157,18 @@ class TestDescendingRowPlacement:
 
     @pytest.fixture
     def bank(self):
-        return Golden1(BankSource(
-            name='Golden1',
-            budget_map_yaml=BUDGET_MAP_YAML,
-            accounts={'CreditCard': [
-                ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
-                ('2026.csv', _fixture_text('CreditCard', '2026.csv')),
-            ]},
-        ))
+        return Golden1(
+            BankSource(
+                name='Golden1',
+                budget_map_yaml=BUDGET_MAP_YAML,
+                accounts={
+                    'CreditCard': [
+                        ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
+                        ('2026.csv', _fixture_text('CreditCard', '2026.csv')),
+                    ]
+                },
+            )
+        )
 
     def test_date_sk_is_monotonically_increasing(self, bank):
         df = bank.account_data['CreditCard']
@@ -201,14 +222,18 @@ class TestCategoryColumnCollision:
     """
 
     def test_no_suffixed_category_pair_in_any_staged_frame(self):
-        bank = Golden1(BankSource(
-            name='Golden1',
-            budget_map_yaml=BUDGET_MAP_YAML,
-            accounts={'CreditCard': [
-                ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
-                ('2026.csv', _fixture_text('CreditCard', '2026.csv')),
-            ]},
-        ))
+        bank = Golden1(
+            BankSource(
+                name='Golden1',
+                budget_map_yaml=BUDGET_MAP_YAML,
+                accounts={
+                    'CreditCard': [
+                        ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
+                        ('2026.csv', _fixture_text('CreditCard', '2026.csv')),
+                    ]
+                },
+            )
+        )
         for table_name, frame in bank.account_data.items():
             columns = list(frame.columns)
             assert 'Category_x' not in columns, f'{table_name} has a suffixed Category_x column'
@@ -231,25 +256,33 @@ class TestBalanceAnchorStability:
 
     @pytest.fixture
     def v1_only_frame(self):
-        bank = Golden1(BankSource(
-            name='Golden1',
-            budget_map_yaml=BUDGET_MAP_YAML,
-            accounts={'CreditCard': [
-                ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
-            ]},
-        ))
+        bank = Golden1(
+            BankSource(
+                name='Golden1',
+                budget_map_yaml=BUDGET_MAP_YAML,
+                accounts={
+                    'CreditCard': [
+                        ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
+                    ]
+                },
+            )
+        )
         return bank.account_data['CreditCard']
 
     @pytest.fixture
     def v1_plus_v2_frame(self):
-        bank = Golden1(BankSource(
-            name='Golden1',
-            budget_map_yaml=BUDGET_MAP_YAML,
-            accounts={'CreditCard': [
-                ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
-                ('2026.csv', _fixture_text('CreditCard', '2026.csv')),
-            ]},
-        ))
+        bank = Golden1(
+            BankSource(
+                name='Golden1',
+                budget_map_yaml=BUDGET_MAP_YAML,
+                accounts={
+                    'CreditCard': [
+                        ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
+                        ('2026.csv', _fixture_text('CreditCard', '2026.csv')),
+                    ]
+                },
+            )
+        )
         return bank.account_data['CreditCard']
 
     def test_pre_2026_balances_are_identical_with_and_without_the_2026_file(
@@ -284,9 +317,7 @@ class TestRejectUndeclaredSchemasRunsBeforeAnyFrameIsBuilt:
     header failed.
     """
 
-    def test_second_files_undeclared_header_fails_before_normalize_file_runs(
-        self, monkeypatch
-    ):
+    def test_second_files_undeclared_header_fails_before_normalize_file_runs(self, monkeypatch):
         good_v1_text = (
             'Date,ReferenceNo.,Type,Description,Debit,Credit,CheckNumber,Balance\n'
             '01/02/2024,1,DEPOSIT,Invented Good Row,,10.00,,10.00\n'
@@ -305,10 +336,12 @@ class TestRejectUndeclaredSchemasRunsBeforeAnyFrameIsBuilt:
         bank_source = BankSource(
             name='Golden1',
             budget_map_yaml=BUDGET_MAP_YAML,
-            accounts={'Checking': [
-                ('2024.csv', good_v1_text),
-                ('2026.csv', bad_text),
-            ]},
+            accounts={
+                'Checking': [
+                    ('2024.csv', good_v1_text),
+                    ('2026.csv', bad_text),
+                ]
+            },
         )
 
         with pytest.raises(UnknownCsvSchemaError) as exc_info:

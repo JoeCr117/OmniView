@@ -98,16 +98,18 @@ class TestLakebaseEngine:
     def _params(password):
         from django.db.utils import ConnectionHandler
 
-        handler = ConnectionHandler({
-            'default': {
-                'ENGINE': 'config.pg_lakebase',
-                'NAME': 'omniview',
-                'HOST': '127.0.0.1',
-                'PORT': '5432',
-                'USER': 'omniview',
-                'PASSWORD': password,
+        handler = ConnectionHandler(
+            {
+                'default': {
+                    'ENGINE': 'config.pg_lakebase',
+                    'NAME': 'omniview',
+                    'HOST': '127.0.0.1',
+                    'PORT': '5432',
+                    'USER': 'omniview',
+                    'PASSWORD': password,
+                }
             }
-        })
+        )
         return handler['default'].get_connection_params()
 
     def test_configured_password_wins(self):
@@ -139,13 +141,17 @@ class TestPipelineEnv:
         monkeypatch.delenv('PGPASSWORD', raising=False)
         monkeypatch.setenv('ENDPOINT_NAME', 'projects/p/branches/b/endpoints/e')
         monkeypatch.setattr(credentials, 'lakebase_token', lambda: 'oauth-token')
-        assert pipeline.run_pipeline('pipelines.expense_tracker.main', 'unused-root')['status'] == 'ok'
+        assert (
+            pipeline.run_pipeline('pipelines.expense_tracker.main', 'unused-root')['status'] == 'ok'
+        )
         assert captured_env['PGPASSWORD'] == 'oauth-token'
 
     def test_existing_pgpassword_is_left_alone(self, monkeypatch, captured_env):
         monkeypatch.setenv('PGPASSWORD', 'local-password')
         monkeypatch.setenv('ENDPOINT_NAME', 'projects/p/branches/b/endpoints/e')
-        assert pipeline.run_pipeline('pipelines.expense_tracker.main', 'unused-root')['status'] == 'ok'
+        assert (
+            pipeline.run_pipeline('pipelines.expense_tracker.main', 'unused-root')['status'] == 'ok'
+        )
         assert captured_env['PGPASSWORD'] == 'local-password'
 
     def test_venv_bin_dir_leads_the_subprocess_path(self, captured_env):
@@ -154,6 +160,8 @@ class TestPipelineEnv:
         import os
         import sys
 
-        assert pipeline.run_pipeline('pipelines.expense_tracker.main', 'unused-root')['status'] == 'ok'
+        assert (
+            pipeline.run_pipeline('pipelines.expense_tracker.main', 'unused-root')['status'] == 'ok'
+        )
         expected_bin = os.path.dirname(os.path.abspath(sys.executable))
         assert captured_env['PATH'].split(os.pathsep)[0] == expected_bin

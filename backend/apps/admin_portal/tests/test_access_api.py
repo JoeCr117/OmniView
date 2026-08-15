@@ -20,7 +20,9 @@ def staff(db):
 
 @pytest.fixture
 def member(db):
-    return User.objects.create_user(username='member', password='member-pass-9', email='member@example.com')
+    return User.objects.create_user(
+        username='member', password='member-pass-9', email='member@example.com'
+    )
 
 
 def test_users_list_includes_app_ids(client, staff, member):

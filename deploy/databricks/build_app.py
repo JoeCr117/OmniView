@@ -83,9 +83,7 @@ def _assert_no_test_code() -> None:
     """Last line of defence: fail the build rather than ship test code."""
     backend = DIST / 'backend'
     leaked = sorted(
-        p.relative_to(DIST).as_posix()
-        for p in backend.rglob('*')
-        if p.name in FORBIDDEN_IN_BACKEND
+        p.relative_to(DIST).as_posix() for p in backend.rglob('*') if p.name in FORBIDDEN_IN_BACKEND
     )
     if leaked:
         sys.exit(
@@ -102,8 +100,11 @@ def run(cmd: list[str], cwd: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--skip-frontend', action='store_true',
-                        help='reuse the existing frontend/out instead of running next build')
+    parser.add_argument(
+        '--skip-frontend',
+        action='store_true',
+        help='reuse the existing frontend/out instead of running next build',
+    )
     args = parser.parse_args()
 
     _assert_ignore_keys_match_copies()
@@ -155,8 +156,10 @@ def main() -> None:
     files = sum(1 for f in DIST.rglob('*') if f.is_file())
     biggest = max((f for f in DIST.rglob('*') if f.is_file()), key=lambda f: f.stat().st_size)
     print(f'Bundle ready: {DIST}')
-    print(f'  {files} files, {total / 1e6:.1f} MB total; '
-          f'largest {biggest.relative_to(DIST)} ({biggest.stat().st_size / 1e6:.1f} MB, limit 10 MB/file)')
+    print(
+        f'  {files} files, {total / 1e6:.1f} MB total; '
+        f'largest {biggest.relative_to(DIST)} ({biggest.stat().st_size / 1e6:.1f} MB, limit 10 MB/file)'
+    )
 
 
 if __name__ == '__main__':

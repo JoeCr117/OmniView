@@ -9,9 +9,9 @@ class ShellConfig(AppConfig):
     apps/expense_tracker/budgets/apps.py.
     """
 
-    default_auto_field = "django.db.models.BigAutoField"
-    name = "shell"
-    label = "shell"
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'shell'
+    label = 'shell'
 
     def ready(self) -> None:
         from shell import signals  # noqa: F401  (connects auth-signal receivers)

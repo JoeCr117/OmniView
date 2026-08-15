@@ -43,9 +43,7 @@ def test_microsoft_login_redirects_to_entra(azure_configured, client, db):
     assert url.path == '/test-tenant/oauth2/v2.0/authorize'
     params = parse_qs(url.query)
     assert params['client_id'] == ['test-client-id']
-    assert params['redirect_uri'] == [
-        'http://testserver/accounts/microsoft/login/callback/'
-    ]
+    assert params['redirect_uri'] == ['http://testserver/accounts/microsoft/login/callback/']
     assert params['scope'] == ['User.Read']
     assert 'state' in params
 

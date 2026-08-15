@@ -22,8 +22,11 @@ class TestListing:
         # (Meta.ordering + distinct() regression).
         first = RawFile.objects.get(account='CreditCard')
         RawFile.objects.create(
-            bank='Golden1', account='CreditCard', filename='2025.csv',
-            content=first.content, size=first.size,
+            bank='Golden1',
+            account='CreditCard',
+            filename='2025.csv',
+            content=first.content,
+            size=first.size,
         )
         assert list_accounts('Golden1') == ['CreditCard', 'Savings']
 
@@ -45,9 +48,7 @@ class TestListing:
 class TestReadCsvRows:
     def test_reads_rows_as_dicts(self, golden1_data):
         rows = read_csv_rows('CreditCard', '2024.csv', 'Golden1')
-        assert rows == [
-            {'Date': '01/03/2024', 'Description': 'COFFEE SHOP', 'Amount': '-4.50'}
-        ]
+        assert rows == [{'Date': '01/03/2024', 'Description': 'COFFEE SHOP', 'Amount': '-4.50'}]
 
     def test_missing_file_404s(self, golden1_data):
         with pytest.raises(HttpError) as exc_info:
@@ -109,7 +110,8 @@ class TestUpload:
         with pytest.raises(HttpError):
             save_uploaded_csv('CreditCard', '2024.csv', self.CONTENT, 'Golden1')
         filenames = list(
-            RawFile.objects.filter(bank='Golden1', account='CreditCard')
-            .values_list('filename', flat=True)
+            RawFile.objects.filter(bank='Golden1', account='CreditCard').values_list(
+                'filename', flat=True
+            )
         )
         assert filenames == ['2024.csv']

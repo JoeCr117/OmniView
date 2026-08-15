@@ -12,7 +12,7 @@ Connection details come from the libpq-standard PG* env vars (see
 base.pg_database); defaults match docker/docker-compose.yml's `db` service.
 """
 
-from .base import *  # noqa: F401,F403
+from .base import *  # noqa: F403
 from .base import REPO_ROOT, pg_database
 
 DATABASES = {

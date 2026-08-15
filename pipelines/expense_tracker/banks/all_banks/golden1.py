@@ -113,22 +113,17 @@ def _derive_transaction_direction(
             f'{where}: {int(two_sided.sum())} row(s) carry both a Debit and a '
             'Credit, so no transaction direction can be derived. First offending '
             f'0-based row positions: {_row_positions(two_sided)}. This is the '
-            'signature of a mis-mapped money column - check this version\'s '
+            "signature of a mis-mapped money column - check this version's "
             '`sources` mapping in golden1_schema.py.'
         )
 
     directionless = ~has_debit & ~has_credit
     if directionless.any():
-        print(
-            f'{where}: {int(directionless.sum())} row(s) carry no money at all; '
-            'Type left NULL'
-        )
+        print(f'{where}: {int(directionless.sum())} row(s) carry no money at all; Type left NULL')
 
     # np.full, not a None scalar: pandas converts a scalar None into NaN, and a
     # float NaN in a TEXT column is not the SQL NULL a directionless row needs.
-    direction = pd.Series(
-        np.full(len(debit), None, dtype='object'), index=debit.index
-    )
+    direction = pd.Series(np.full(len(debit), None, dtype='object'), index=debit.index)
     direction[has_debit] = 'DEBIT'
     direction[has_credit] = 'CREDIT'
     return direction
@@ -273,15 +268,11 @@ def _normalize_file(csv_text: str, *, where: str) -> pd.DataFrame:
         )
 
     conformed = pd.DataFrame(by_legacy_name, columns=list(LEGACY_COLUMNS))
-    dates = _parse_dates(
-        conformed['Date'], date_format=spec.date_format, where=where
-    )
+    dates = _parse_dates(conformed['Date'], date_format=spec.date_format, where=where)
     conformed['DateSK'] = dates.dt.strftime('%Y%m%d').astype('int64')
     conformed['Date'] = dates.dt.strftime('%Y-%m-%d')
 
-    oldest_first = _to_oldest_first(
-        conformed, dates, spec=spec, where=where
-    ).reset_index(drop=True)
+    oldest_first = _to_oldest_first(conformed, dates, spec=spec, where=where).reset_index(drop=True)
     oldest_first['SourceSchema'] = spec.version
     return oldest_first
 
@@ -298,22 +289,17 @@ def _reject_undeclared_schemas(labelled_files: Sequence[tuple[str, str]]) -> Non
 
 
 class Golden1(Bank):
-
     def _parse_transactions(self) -> dict[str, pd.DataFrame]:
         account_data = {}
 
         for account_name, files in self.source.accounts.items():
             labelled_files = [
-                (f'{self.name}/{account_name}/{filename}', csv_text)
-                for filename, csv_text in files
+                (f'{self.name}/{account_name}/{filename}', csv_text) for filename, csv_text in files
             ]
             _reject_undeclared_schemas(labelled_files)
 
             df = pd.concat(
-                (
-                    _normalize_file(csv_text, where=where)
-                    for where, csv_text in labelled_files
-                ),
+                (_normalize_file(csv_text, where=where) for where, csv_text in labelled_files),
                 ignore_index=True,
             )
             df['AccountType'] = account_name
@@ -383,9 +369,7 @@ class Golden1(Bank):
         # Coerced, not raised: an inferred parse quotes the offending cell in
         # pandas' own message. '%Y-%m-%d' is what `_normalize_file` writes, so a
         # NaT here means this frame did not come through it.
-        parsed_dates = pd.to_datetime(
-            df2['Date'], format='%Y-%m-%d', errors='coerce'
-        )
+        parsed_dates = pd.to_datetime(df2['Date'], format='%Y-%m-%d', errors='coerce')
         unparseable = parsed_dates.isna()
         if unparseable.any():
             raise ValueError(

@@ -4,17 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
             name='AllTransaction',
             fields=[
-                ('date_sk', models.IntegerField(db_column='datesk', primary_key=True, serialize=False)),
+                (
+                    'date_sk',
+                    models.IntegerField(db_column='datesk', primary_key=True, serialize=False),
+                ),
                 ('calendar_date', models.CharField(db_column='calendardate', max_length=10)),
                 ('account_type', models.TextField(db_column='accounttype')),
                 ('transaction_amount', models.FloatField(db_column='transactionamount')),
@@ -31,7 +32,10 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='UncategorizedTransaction',
             fields=[
-                ('date_sk', models.IntegerField(db_column='datesk', primary_key=True, serialize=False)),
+                (
+                    'date_sk',
+                    models.IntegerField(db_column='datesk', primary_key=True, serialize=False),
+                ),
                 ('account_type', models.TextField(db_column='accounttype')),
                 ('calendar_date', models.CharField(db_column='calendardate', max_length=10)),
                 ('transaction_description', models.TextField(db_column='transactiondescription')),

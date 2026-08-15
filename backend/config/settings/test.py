@@ -13,7 +13,7 @@ it per-test.)
 from django.db.backends.signals import connection_created
 from django.dispatch import receiver
 
-from .base import *  # noqa: F401,F403
+from .base import *  # noqa: F403
 from .base import REPO_ROOT
 
 

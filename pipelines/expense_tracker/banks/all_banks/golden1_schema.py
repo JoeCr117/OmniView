@@ -30,18 +30,18 @@ versioning - not before.
 """
 
 __all__ = [
-    'LEGACY_COLUMNS',
-    'Derived',
-    'Absent',
-    'ColumnSource',
-    'RowOrder',
-    'Golden1CsvSchema',
     'GOLDEN1_CSV_SCHEMAS',
-    'UnknownCsvSchemaError',
+    'LEGACY_COLUMNS',
+    'Absent',
     'AmbiguousCsvSchemaError',
+    'ColumnSource',
+    'Derived',
+    'Golden1CsvSchema',
+    'RowOrder',
+    'UnknownCsvSchemaError',
+    'detect_schema',
     'normalize_header_name',
     'sniff_header',
-    'detect_schema',
 ]
 
 import csv
@@ -57,8 +57,14 @@ from typing import Literal
 #: is. The bronze dbt models select these names literally, so this tuple is a
 #: published contract - changing it is a dbt change too.
 LEGACY_COLUMNS: tuple[str, ...] = (
-    'Date', 'ReferenceNo.', 'Type', 'Description',
-    'Debit', 'Credit', 'CheckNumber', 'Balance',
+    'Date',
+    'ReferenceNo.',
+    'Type',
+    'Description',
+    'Debit',
+    'Credit',
+    'CheckNumber',
+    'Balance',
 )
 
 
@@ -154,8 +160,14 @@ GOLDEN1_CSV_SCHEMAS: tuple[Golden1CsvSchema, ...] = (
     Golden1CsvSchema(
         version='golden1.v1',
         header=(
-            'Date', 'ReferenceNo.', 'Type', 'Description',
-            'Debit', 'Credit', 'CheckNumber', 'Balance',
+            'Date',
+            'ReferenceNo.',
+            'Type',
+            'Description',
+            'Debit',
+            'Credit',
+            'CheckNumber',
+            'Balance',
         ),
         sources=MappingProxyType({name: name for name in LEGACY_COLUMNS}),
         # strptime ignores zero-padding, so one format parses both M/d/yyyy and
@@ -167,24 +179,33 @@ GOLDEN1_CSV_SCHEMAS: tuple[Golden1CsvSchema, ...] = (
     Golden1CsvSchema(
         version='golden1.v2',
         header=(
-            'Date', 'Account', 'Account Type', 'Description',
-            'Check #', 'Category', 'Credit', 'Debit', 'Daily Balance',
+            'Date',
+            'Account',
+            'Account Type',
+            'Description',
+            'Check #',
+            'Category',
+            'Credit',
+            'Debit',
+            'Daily Balance',
         ),
-        sources=MappingProxyType({
-            'Date': 'Date',
-            'ReferenceNo.': Absent.NOT_IN_SOURCE,
-            # v2's 'Account Type' is the account KIND (Checking, Credit Card).
-            # Legacy 'Type' is the transaction DIRECTION (DEBIT, CREDIT). The
-            # names nearly match and the meanings do not overlap at all: mapping
-            # one to the other writes "Checking" into a direction column, and it
-            # stays there. 'Type' is computed from the money columns instead.
-            'Type': Derived.TYPE_FROM_MONEY_COLUMNS,
-            'Description': 'Description',
-            'Debit': 'Debit',
-            'Credit': 'Credit',
-            'CheckNumber': 'Check #',
-            'Balance': 'Daily Balance',
-        }),
+        sources=MappingProxyType(
+            {
+                'Date': 'Date',
+                'ReferenceNo.': Absent.NOT_IN_SOURCE,
+                # v2's 'Account Type' is the account KIND (Checking, Credit Card).
+                # Legacy 'Type' is the transaction DIRECTION (DEBIT, CREDIT). The
+                # names nearly match and the meanings do not overlap at all: mapping
+                # one to the other writes "Checking" into a direction column, and it
+                # stays there. 'Type' is computed from the money columns instead.
+                'Type': Derived.TYPE_FROM_MONEY_COLUMNS,
+                'Description': 'Description',
+                'Debit': 'Debit',
+                'Credit': 'Credit',
+                'CheckNumber': 'Check #',
+                'Balance': 'Daily Balance',
+            }
+        ),
         date_format='%m/%d/%Y',
         row_order='descending',
     ),
@@ -232,11 +253,9 @@ def _duplicated_names(header: Sequence[str]) -> list[str]:
 #: Every column name any declared schema exports, keyed by its normalized form.
 #: Membership here is what makes a row-1 name safe to repeat back: the name is
 #: then this module's own constant, matched against, not the file's text.
-_DECLARED_HEADER_NAMES: Mapping[str, str] = MappingProxyType({
-    normalize_header_name(name): name
-    for schema in GOLDEN1_CSV_SCHEMAS
-    for name in schema.header
-})
+_DECLARED_HEADER_NAMES: Mapping[str, str] = MappingProxyType(
+    {normalize_header_name(name): name for schema in GOLDEN1_CSV_SCHEMAS for name in schema.header}
+)
 
 
 def _declared_names_clause(names: Sequence[str], *, label: str) -> str:
@@ -252,11 +271,9 @@ def _declared_names_clause(names: Sequence[str], *, label: str) -> str:
     it cannot bound.
     """
     normalized = [normalize_header_name(name) for name in names]
-    declared = sorted({
-        _DECLARED_HEADER_NAMES[name]
-        for name in normalized
-        if name in _DECLARED_HEADER_NAMES
-    })
+    declared = sorted(
+        {_DECLARED_HEADER_NAMES[name] for name in normalized if name in _DECLARED_HEADER_NAMES}
+    )
     undeclared = sum(name not in _DECLARED_HEADER_NAMES for name in normalized)
     return (
         f'{label}: {declared} also declared by a Golden1 schema, plus '
@@ -298,7 +315,8 @@ def detect_schema(header: Sequence[str], *, where: str) -> Golden1CsvSchema:
         )
 
     matches = [
-        schema for schema in GOLDEN1_CSV_SCHEMAS
+        schema
+        for schema in GOLDEN1_CSV_SCHEMAS
         if schema.match_key == (column_count, distinct_names)
     ]
 

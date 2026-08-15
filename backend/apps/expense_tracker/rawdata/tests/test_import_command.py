@@ -4,13 +4,15 @@ BudgetMapDocument rows. Trees are built in tmp_path - the command is the one
 remaining place the filesystem layout matters.
 """
 
+import re
+
 import pytest
 import yaml
 from django.core.management import CommandError, call_command
 
 from apps.expense_tracker.budgets.models import BudgetMapDocument
-from apps.expense_tracker.tests.fixtures import GOLDEN1_CSV, VALID_BUDGET_MAP
 from apps.expense_tracker.rawdata.models import RawFile
+from apps.expense_tracker.tests.fixtures import GOLDEN1_CSV, VALID_BUDGET_MAP
 
 pytestmark = pytest.mark.django_db
 
@@ -65,5 +67,5 @@ def test_missing_directory_errors(tmp_path):
 
 def test_bank_without_budget_map_errors(banks_tree):
     (banks_tree / 'Golden1' / 'BudgetMap.yml').unlink()
-    with pytest.raises(CommandError, match='exactly one root .yml'):
+    with pytest.raises(CommandError, match=re.escape('exactly one root .yml')):
         call_command('import_banks_dir', str(banks_tree))

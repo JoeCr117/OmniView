@@ -6,7 +6,6 @@ so the Rebuild endpoint (budgets/api.py) doesn't have to know either detail.
 """
 
 from django.conf import settings
-
 from shell.pipeline import is_rebuild_running, run_pipeline
 
 __all__ = ['is_rebuild_running', 'run_rebuild']

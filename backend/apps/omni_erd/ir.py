@@ -129,7 +129,7 @@ _BASE_BY_STEM: dict[str, BaseType] = {
 _WHITESPACE = re.compile(r'\s+')
 
 
-def normalize_type(raw: str | None) -> 'ColumnType':
+def normalize_type(raw: str | None) -> ColumnType:
     """Map an engine's type spelling onto the closed `BaseType` set.
 
     Never raises and never drops information: an unrecognised type still keeps

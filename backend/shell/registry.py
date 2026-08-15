@@ -19,6 +19,7 @@ shell/tests/test_registry.py asserts the two agree on ids.
 from apps.admin_portal.omniview_app import APP as ADMIN_PORTAL
 from apps.expense_tracker.omniview_app import APP as EXPENSE_TRACKER
 from apps.omni_erd.omniview_app import APP as OMNI_ERD
+
 from shell.appspec import OmniViewApp
 
 OMNIVIEW_APPS: tuple[OmniViewApp, ...] = (
@@ -30,9 +31,7 @@ OMNIVIEW_APPS: tuple[OmniViewApp, ...] = (
 APPS_BY_ID = {app.id: app for app in OMNIVIEW_APPS}
 
 #: Dotted paths for INSTALLED_APPS, in registry order.
-DJANGO_APPS: tuple[str, ...] = tuple(
-    dotted for app in OMNIVIEW_APPS for dotted in app.django_apps
-)
+DJANGO_APPS: tuple[str, ...] = tuple(dotted for app in OMNIVIEW_APPS for dotted in app.django_apps)
 
 #: App labels whose unmanaged models read from the datavault schema.
 DATAVAULT_APPS: frozenset[str] = frozenset(
@@ -40,13 +39,9 @@ DATAVAULT_APPS: frozenset[str] = frozenset(
 )
 
 #: App ids an admin may grant to a user (the Admin Portal itself is not one).
-GRANTABLE_APP_IDS: frozenset[str] = frozenset(
-    app.id for app in OMNIVIEW_APPS if app.grantable
-)
+GRANTABLE_APP_IDS: frozenset[str] = frozenset(app.id for app in OMNIVIEW_APPS if app.grantable)
 
 #: Pre-OmniView page name -> where it lives now.
 LEGACY_REDIRECTS: dict[str, str] = {
-    page: f'{app.base_path}/{page}'
-    for app in OMNIVIEW_APPS
-    for page in app.legacy_pages
+    page: f'{app.base_path}/{page}' for app in OMNIVIEW_APPS for page in app.legacy_pages
 }

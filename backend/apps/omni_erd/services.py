@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import NamedTuple
 
 from django.core.cache import cache
@@ -92,7 +92,7 @@ def build_graph(source_id: str, namespace: str | None = None) -> SchemaGraph:
             id=source.id,
             dialect=source.dialect,
             label=source.label,
-            captured_at=datetime.now(timezone.utc).isoformat(),
+            captured_at=datetime.now(UTC).isoformat(),
             container={'namespace': resolved},
         ),
         entities=tuple(entities),
@@ -138,9 +138,7 @@ def get_layout(user, source_id: str, namespace: str) -> dict:
         return {'positions': {}, 'view_state': dict(DEFAULT_VIEW_STATE)}
     # Filtered by user, not merely fetched then checked: a layout belonging to
     # someone else must be indistinguishable from one that does not exist.
-    layout = ErdLayout.objects.filter(
-        user=user, source_id=source.id, namespace=resolved
-    ).first()
+    layout = ErdLayout.objects.filter(user=user, source_id=source.id, namespace=resolved).first()
     if layout is None:
         return {'positions': {}, 'view_state': dict(DEFAULT_VIEW_STATE)}
     return {
@@ -301,15 +299,11 @@ def stored_overrides(source_id: str, namespace: str) -> list[RelationshipOverrid
     """Every override written against one diagram, as inference input."""
     return [
         override_to_ir(row)
-        for row in ErdRelationshipOverride.objects.filter(
-            source_id=source_id, namespace=namespace
-        )
+        for row in ErdRelationshipOverride.objects.filter(source_id=source_id, namespace=namespace)
     ]
 
 
-def override_status(
-    override: RelationshipOverride, by_id: dict[str, Entity]
-) -> tuple[str, str]:
+def override_status(override: RelationshipOverride, by_id: dict[str, Entity]) -> tuple[str, str]:
     """`('active', '')`, or the problem code and the detail naming what is missing."""
     resolved = resolve_override(override, by_id)
     if isinstance(resolved, OverrideProblem):
@@ -406,7 +400,7 @@ def _require_valid_ends(
             f'same count (got {len(source_columns)} and {len(target_columns)})',
         )
     seen: set[tuple[str, str]] = set()
-    for source_column, target_column in zip(source_columns, target_columns):
+    for source_column, target_column in zip(source_columns, target_columns, strict=True):
         pair = (source_column.lower(), target_column.lower())
         if pair in seen:
             raise HttpError(
@@ -540,9 +534,7 @@ def delete_override(source_id: str, namespace: str | None, override_id: int) -> 
     invalidate_graph(source.id, resolved)
 
 
-def _require_override(
-    source_id: str, namespace: str, override_id: int
-) -> ErdRelationshipOverride:
+def _require_override(source_id: str, namespace: str, override_id: int) -> ErdRelationshipOverride:
     """Fetched filtered by diagram, not fetched then checked: an override
     belonging to another source must be indistinguishable from one that does not
     exist."""

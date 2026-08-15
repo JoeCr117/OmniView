@@ -84,7 +84,7 @@ def connect(cfg: dict) -> tuple[psycopg.Connection, str, str]:
     sp_client_id = w.apps.get(cfg['app_name']).service_principal_client_id
     if not sp_client_id:
         raise RuntimeError(
-            f"app {cfg['app_name']!r} has no service_principal_client_id yet - "
+            f'app {cfg["app_name"]!r} has no service_principal_client_id yet - '
             'has `apps create` finished?'
         )
     # Same call the app makes for its own password, under our identity.
@@ -136,7 +136,7 @@ def provision(conn: psycopg.Connection, cfg: dict, workspace_user: str, sp_clien
             )
         )
     print(f'  member    {workspace_user}, {sp_client_id} (app SP)')
-    print(f"  database  {cfg['database']}: CREATE, CONNECT -> {OWNER_ROLE}")
+    print(f'  database  {cfg["database"]}: CREATE, CONNECT -> {OWNER_ROLE}')
 
     # 5. Hand any existing schema to the role, best-effort and per-schema. On a
     #    fresh create the schemas do not exist yet (the app makes them on first
@@ -167,7 +167,7 @@ def verify(conn: psycopg.Connection, sp_client_id: str) -> bool:
     with conn.cursor() as cur:
         cur.execute('select pg_has_role(%s, %s, %s)', (sp_client_id, OWNER_ROLE, 'MEMBER'))
         is_member = cur.fetchone()[0]
-        print(f"\n  VERIFY  app SP is a member of {OWNER_ROLE}: {'yes' if is_member else 'NO'}")
+        print(f'\n  VERIFY  app SP is a member of {OWNER_ROLE}: {"yes" if is_member else "NO"}')
 
         # The ownership tripwire, per schema: anything other than the owner role
         # is a finding that would surface as `permission denied` on a page load.
@@ -195,10 +195,10 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = load_config()
-    print(f"Lakebase {cfg['host']} / {cfg['database']} (profile {cfg['profile']})")
+    print(f'Lakebase {cfg["host"]} / {cfg["database"]} (profile {cfg["profile"]})')
     try:
         conn, workspace_user, sp_client_id = connect(cfg)
-    except Exception as exc:  # noqa: BLE001 - any auth/connect failure should print plainly and abort
+    except Exception as exc:
         sys.exit(f'ABORTED: could not connect to Lakebase as the workspace user: {exc}')
 
     with conn:

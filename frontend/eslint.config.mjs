@@ -35,6 +35,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vitest's v8 coverage report - generated JS, not source.
+    "coverage/**",
   ]),
   {
     files: ["src/**/*.{ts,tsx}"],

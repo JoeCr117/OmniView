@@ -16,6 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # REPO_ROOT is one level above backend/, where Data/ and pipelines/ live.
 REPO_ROOT = BASE_DIR.parent
 
+
 def _env_flag(name: str, default: str = '') -> bool:
     return os.environ.get(name, default).strip().lower() in {'1', 'true', 'yes', 'on'}
 

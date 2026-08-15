@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings 7",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "e2e": "next build && playwright test"
   },
@@ -41,6 +43,7 @@
     "@types/react-dom": "^19",
     "@types/tabulator-tables": "^6.3.5",
     "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "jsdom": "^29.1.1",

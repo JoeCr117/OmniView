@@ -18,7 +18,7 @@ source-data table (default), as budgets does.
 # Apps that contain unmanaged models over the dbt gold tables. Declared by each
 # OmniView app (datavault_labels in its omniview_app.py), not listed here: the
 # shell shouldn't have to be edited to add an app.
-from shell.registry import DATAVAULT_APPS  # noqa: F401  (re-exported; tests import it from here)
+from shell.registry import DATAVAULT_APPS
 
 
 class OmniViewDBRouter:
@@ -26,8 +26,8 @@ class OmniViewDBRouter:
     def _alias_for(model):
         meta = model._meta
         if meta.app_label in DATAVAULT_APPS and not meta.managed:
-            return "datavault"
-        return "default"
+            return 'datavault'
+        return 'default'
 
     def db_for_read(self, model, **hints):
         return self._alias_for(model)
@@ -44,4 +44,4 @@ class OmniViewDBRouter:
         # Everything migrates on default only. Unmanaged models produce
         # state-only migration operations (no DDL), so allowing whole apps
         # through on default is safe.
-        return db != "datavault"
+        return db != 'datavault'

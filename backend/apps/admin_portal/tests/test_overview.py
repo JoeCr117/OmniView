@@ -3,8 +3,6 @@ The Overview endpoint always 200s: DB KPIs are always present, Databricks
 KPIs degrade to None + connected=False when the workspace is unreachable.
 """
 
-from types import SimpleNamespace
-
 import pytest
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -42,11 +40,13 @@ def test_degrades_without_databricks(client, monkeypatch):
 def test_full_overview_when_connected(client, settings, monkeypatch):
     settings.OMNIVIEW_SQL_WAREHOUSE_ID = 'wh-123'
     monkeypatch.setattr(
-        services, 'jobs_overview_for',
+        services,
+        'jobs_overview_for',
         lambda request: {'counts': {'jobs': 2, 'running': 1, 'completed': 3, 'failed': 2}},
     )
     monkeypatch.setattr(
-        services, 'costs_overview_for',
+        services,
+        'costs_overview_for',
         lambda request, days: {'kpis': {'total_dbus': 4.5}},
     )
     body = client.get(URL).json()

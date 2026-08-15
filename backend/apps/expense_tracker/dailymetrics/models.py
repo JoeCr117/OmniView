@@ -9,21 +9,27 @@ class DailyMetric(models.Model):
     doesn't declare one.
     """
 
-    date_sk = models.IntegerField(db_column="datesk", primary_key=True)
-    calendar_date = models.CharField(db_column="calendardate", max_length=10)
-    credit_card_transaction_total = models.FloatField(db_column="creditcardtransactiontotal", null=True)
-    credit_card_balance = models.FloatField(db_column="creditcardbalance", null=True)
-    free_checking_transaction_total = models.FloatField(db_column="freecheckingtransactiontotal", null=True)
-    free_checking_balance = models.FloatField(db_column="freecheckingbalance", null=True)
-    money_market_transaction_total = models.FloatField(db_column="moneymarkettransactiontotal", null=True)
-    money_market_balance = models.FloatField(db_column="moneymarketbalance", null=True)
-    savings_transaction_total = models.FloatField(db_column="savingstransactiontotal", null=True)
-    savings_balance = models.FloatField(db_column="savingsbalance", null=True)
-    transaction_total = models.FloatField(db_column="transactiontotal", null=True)
-    total_balance = models.FloatField(db_column="totalbalance", null=True)
-    no_transactions_flag = models.IntegerField(db_column="notransactionsflag", null=True)
+    date_sk = models.IntegerField(db_column='datesk', primary_key=True)
+    calendar_date = models.CharField(db_column='calendardate', max_length=10)
+    credit_card_transaction_total = models.FloatField(
+        db_column='creditcardtransactiontotal', null=True
+    )
+    credit_card_balance = models.FloatField(db_column='creditcardbalance', null=True)
+    free_checking_transaction_total = models.FloatField(
+        db_column='freecheckingtransactiontotal', null=True
+    )
+    free_checking_balance = models.FloatField(db_column='freecheckingbalance', null=True)
+    money_market_transaction_total = models.FloatField(
+        db_column='moneymarkettransactiontotal', null=True
+    )
+    money_market_balance = models.FloatField(db_column='moneymarketbalance', null=True)
+    savings_transaction_total = models.FloatField(db_column='savingstransactiontotal', null=True)
+    savings_balance = models.FloatField(db_column='savingsbalance', null=True)
+    transaction_total = models.FloatField(db_column='transactiontotal', null=True)
+    total_balance = models.FloatField(db_column='totalbalance', null=True)
+    no_transactions_flag = models.IntegerField(db_column='notransactionsflag', null=True)
 
     class Meta:
         managed = False
-        db_table = "gold_Golden1_DailyMetrics"
-        ordering = ["date_sk"]
+        db_table = 'gold_Golden1_DailyMetrics'
+        ordering = ['date_sk']

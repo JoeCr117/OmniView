@@ -13,7 +13,7 @@ recreates, so the suite can never touch the real `omniview` database or the
 production Data/ tree.
 """
 
-from .base import *  # noqa: F401,F403
+from .base import *  # noqa: F403
 from .base import BASE_DIR, REPO_ROOT, pg_database
 
 # Marker the e2e_bootstrap command checks before dropping E2E_DATABASE_NAME -

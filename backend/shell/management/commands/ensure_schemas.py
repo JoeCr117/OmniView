@@ -19,7 +19,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         connection = connections['default']
         if connection.vendor != 'postgresql':
-            self.stdout.write(f'Skipping: default DB vendor is {connection.vendor!r}, not postgresql.')
+            self.stdout.write(
+                f'Skipping: default DB vendor is {connection.vendor!r}, not postgresql.'
+            )
             return
         with connection.cursor() as cursor:
             for schema in SCHEMAS:

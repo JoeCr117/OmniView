@@ -40,11 +40,15 @@ def _run(run_id, job_id, life, result, start=1_700_000_000_000, end=1_700_000_06
 
 def _fake_client():
     jobs_api = SimpleNamespace(
-        list=lambda limit: iter([
-            SimpleNamespace(job_id=10, settings=SimpleNamespace(name='Nightly rebuild')),
-        ]),
+        list=lambda limit: iter(
+            [
+                SimpleNamespace(job_id=10, settings=SimpleNamespace(name='Nightly rebuild')),
+            ]
+        ),
         list_runs=lambda active_only=False, completed_only=False, limit=25: iter(
-            [_run(1, 10, 'RUNNING', None, end=None)] if active_only else [
+            [_run(1, 10, 'RUNNING', None, end=None)]
+            if active_only
+            else [
                 _run(2, 10, 'TERMINATED', 'SUCCESS'),
                 _run(3, 10, 'TERMINATED', 'FAILED'),
             ]
@@ -96,8 +100,10 @@ class TestEndpoint:
         from databricks.sdk import errors
 
         failing = _fake_client()
+
         def denied(**kwargs):
             raise errors.PermissionDenied('nope')
+
         failing.jobs.list = lambda limit: denied()
 
         monkeypatch.setattr(services, 'obo_client', lambda request: failing)
@@ -111,8 +117,10 @@ class TestEndpoint:
 
         def make_failing():
             failing = _fake_client()
+
             def denied(**kwargs):
                 raise errors.PermissionDenied('nope')
+
             failing.jobs.list = lambda limit: denied()
             return failing
 

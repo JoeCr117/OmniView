@@ -1,0 +1,80 @@
+# Fast, local, blocking. Everything here runs in about a second on a changed
+# file; anything slower belongs in .github/workflows/quality.yml instead.
+#
+#   uv run pre-commit install       # once, to arm the hook
+#   uv run pre-commit run --all-files
+#
+# The numbers these hold are measured, not chosen - see quality/README.md.
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
+    hooks:
+      # This repo is public and Data/ is real financial data. A committed secret
+      # is the one defect here that cannot be fixed by a later commit.
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Correctness checks only. The cosmetic hooks (end-of-file-fixer,
+      # trailing-whitespace, mixed-line-ending) are deliberately absent: on this
+      # Windows checkout with no .gitattributes they rewrite SVGs, CSS and dbt
+      # SQL on every run, which is churn rather than signal.
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+
+  - repo: local
+    hooks:
+      # ruff runs from the project environment, not from ruff-pre-commit's own
+      # pinned copy. Two ruffs disagree: the hook's v0.9.7 flagged UP038, which
+      # the version in uv.lock has since removed. uv.lock is the single version
+      # of truth, and CI runs the same one.
+      # --force-exclude: pre-commit passes explicit filenames, and an explicit
+      # path overrides pyproject's extend-exclude. Without it both hooks reach
+      # into the generated migrations this project deliberately does not lint.
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check --fix --force-exclude
+        language: system
+        types: [python]
+
+      # Formatting stops being a review topic. quote-style='single' in
+      # pyproject.toml matches the style the codebase already used 15:1.
+      - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format --force-exclude
+        language: system
+        types: [python]
+
+      # docs/ARCHITECTURE.md's boundaries, as a check rather than a claim.
+      # Local because it needs the repo's own PYTHONPATH (backend + root), the
+      # same one pytest uses.
+      - id: import-linter
+        name: architecture contracts (import-linter)
+        entry: uv run lint-imports --config .importlinter
+        language: system
+        pass_filenames: false
+        types: [python]
+
+      - id: mypy
+        name: mypy
+        entry: uv run mypy backend pipelines
+        language: system
+        pass_filenames: false
+        types: [python]
+
+      - id: eslint
+        name: eslint (app-isolation zones + max-warnings ratchet)
+        entry: npm --prefix frontend run lint
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx|mjs)$
+
+      - id: tsc
+        name: tsc --noEmit
+        entry: npm --prefix frontend run typecheck
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx)$

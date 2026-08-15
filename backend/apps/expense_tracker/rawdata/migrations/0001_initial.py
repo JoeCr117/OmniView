@@ -4,17 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
             name='RawFile',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                (
+                    'id',
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name='ID'
+                    ),
+                ),
                 ('bank', models.CharField(max_length=100)),
                 ('account', models.CharField(max_length=100)),
                 ('filename', models.CharField(max_length=255)),
@@ -24,7 +27,11 @@ class Migration(migrations.Migration):
             ],
             options={
                 'ordering': ['bank', 'account', 'filename'],
-                'constraints': [models.UniqueConstraint(fields=('bank', 'account', 'filename'), name='unique_rawfile_per_account')],
+                'constraints': [
+                    models.UniqueConstraint(
+                        fields=('bank', 'account', 'filename'), name='unique_rawfile_per_account'
+                    )
+                ],
             },
         ),
     ]

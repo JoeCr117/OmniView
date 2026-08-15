@@ -8,9 +8,9 @@ back out again even if the build raises.
 __all__ = ['temp_cd']
 
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 
 @contextmanager

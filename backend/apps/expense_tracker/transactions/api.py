@@ -8,7 +8,7 @@ from .services import budget_analysis
 router = Router()
 
 
-@router.get("", response=list[AllTransactionOut])
+@router.get('', response=list[AllTransactionOut])
 @paginate(LimitOffsetPagination)
 def list_transactions(
     request,
@@ -29,12 +29,12 @@ def list_transactions(
     return qs
 
 
-@router.get("/budget-analysis", response=list[BudgetAnalysisRow])
+@router.get('/budget-analysis', response=list[BudgetAnalysisRow])
 def get_budget_analysis(request, start: str | None = None, end: str | None = None):
     return budget_analysis(start, end)
 
 
-@router.get("/uncategorized", response=list[UncategorizedTransactionOut])
+@router.get('/uncategorized', response=list[UncategorizedTransactionOut])
 @paginate(LimitOffsetPagination)
 def list_uncategorized(request, start: str | None = None, end: str | None = None):
     qs = UncategorizedTransaction.objects.all()

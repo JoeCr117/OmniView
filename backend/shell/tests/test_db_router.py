@@ -6,20 +6,19 @@ touch `datavault` (the pipeline drops and recreates its tables on every
 rebuild).
 """
 
-from django.contrib.auth.models import User
-from django.contrib.sessions.models import Session
-
 from apps.expense_tracker.budgets.models import BudgetMap, BudgetMapDocument
-from config.db_router import DATAVAULT_APPS, OmniViewDBRouter
 from apps.expense_tracker.dailymetrics.models import DailyMetric
 from apps.expense_tracker.rawdata.models import RawFile
 from apps.expense_tracker.transactions.models import AllTransaction
+from config.db_router import DATAVAULT_APPS, OmniViewDBRouter
+from django.contrib.auth.models import User
+from django.contrib.sessions.models import Session
 
 router = OmniViewDBRouter()
 
 
 def test_datavault_apps_cover_the_expense_tracker_apps():
-    assert DATAVAULT_APPS == {'dailymetrics', 'transactions', 'budgets', 'rawdata'}
+    assert {'dailymetrics', 'transactions', 'budgets', 'rawdata'} == DATAVAULT_APPS
 
 
 def test_unmanaged_expense_models_read_and_write_datavault():

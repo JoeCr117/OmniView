@@ -78,3 +78,5 @@ backend/staticfiles/
 quality/reports/*
 !quality/reports/baseline-audit.md
 .schemathesis/
+frontend/coverage/
+.coverage

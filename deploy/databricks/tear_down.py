@@ -60,6 +60,7 @@ def read_manifest() -> dict:
         )
     return json.loads(MANIFEST.read_text(encoding='utf-8'))
 
+
 # Substrings that mark a probe failure as a genuine "resource does not exist"
 # rather than an auth/network/permission problem. Matched case-insensitively
 # against the CLI's combined stdout+stderr.
@@ -82,9 +83,7 @@ def cli(profile: str, *args: str, check: bool = True) -> subprocess.CompletedPro
     try:
         return subprocess.run(cmd, capture_output=True, text=True, check=check)
     except FileNotFoundError as exc:
-        raise TeardownError(
-            'the `databricks` CLI is not installed or not on PATH'
-        ) from exc
+        raise TeardownError('the `databricks` CLI is not installed or not on PATH') from exc
 
 
 def _looks_like_not_found(result: subprocess.CompletedProcess) -> bool:
@@ -128,7 +127,7 @@ def exists(profile: str, resource: dict) -> bool:
     if _looks_like_not_found(result):
         return False
     raise TeardownError(
-        f"probing {resource['type']} {resource['id']!r} failed for a reason other than "
+        f'probing {resource["type"]} {resource["id"]!r} failed for a reason other than '
         f'it being absent: {(result.stderr or result.stdout).strip()}'
     )
 
@@ -145,21 +144,23 @@ def delete(profile: str, resource: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--yes', action='store_true', help='perform the deletions (default: dry run)')
+    parser.add_argument(
+        '--yes', action='store_true', help='perform the deletions (default: dry run)'
+    )
     args = parser.parse_args()
 
     manifest = read_manifest()
     profile = manifest['cli_profile']
     resources = manifest['resources']
 
-    print(f"Workspace: {manifest['workspace_host']} (profile {profile})")
+    print(f'Workspace: {manifest["workspace_host"]} (profile {profile})')
     preflight(profile)
-    print(f"{'Deleting' if args.yes else 'DRY RUN - would delete'} {len(resources)} resource(s):\n")
+    print(f'{"Deleting" if args.yes else "DRY RUN - would delete"} {len(resources)} resource(s):\n')
 
     failures = 0
     skipped = 0
     for resource in resources:
-        label = f"{resource['type']:<20} {resource['id']}"
+        label = f'{resource["type"]:<20} {resource["id"]}'
         if not exists(profile, resource):
             skipped += 1
             print(f'  SKIP    {label} (not found - already deleted?)')
@@ -178,9 +179,11 @@ def main() -> None:
         # Every probe said "absent". That is legitimate after a completed
         # teardown, but it is also what a half-broken environment looks like,
         # so say so rather than let an all-SKIP run read as success.
-        print('\nNote: every resource probed as already absent. If that is unexpected, '
-              'confirm the profile targets the right workspace before assuming the '
-              'teardown is done.')
+        print(
+            '\nNote: every resource probed as already absent. If that is unexpected, '
+            'confirm the profile targets the right workspace before assuming the '
+            'teardown is done.'
+        )
     if not args.yes:
         print('\nRe-run with --yes to delete. The lakebase_project step destroys all app data.')
     sys.exit(1 if failures else 0)

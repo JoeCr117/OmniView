@@ -9,6 +9,7 @@ or cell-by-cell in an interactive window - the `# %%` markers are deliberate.
 The web app invokes this as a subprocess when you press Rebuild; see
 backend/shell/pipeline.py.
 """
+
 from pathlib import Path
 
 from sqlalchemy import text
@@ -70,6 +71,6 @@ def main(serve_docs: bool = False):
 
 
 # %%
-if __name__ == "__main__":
+if __name__ == '__main__':
     main(serve_docs=False)
 # %%

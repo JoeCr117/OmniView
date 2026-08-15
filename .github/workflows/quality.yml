@@ -1,0 +1,138 @@
+# Objective quality gates. Counts only - deterministic, so a failure means the
+# code changed, not that the runner was busy. Wall-clock measurements
+# deliberately do NOT live here (see quality/README.md): shared runners are too
+# noisy to time anything, so hyperfine/benchmark baselines are taken locally.
+
+name: quality
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: omniview
+          POSTGRES_USER: omniview
+          POSTGRES_PASSWORD: omniview-dev
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U omniview -d omniview"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+
+      - name: ruff
+        run: uv run ruff check backend pipelines deploy
+
+      - name: ruff-format
+        run: uv run ruff format --check backend pipelines deploy
+
+      - name: mypy
+        run: uv run mypy backend pipelines
+
+      - name: architecture contracts
+        run: uv run lint-imports --config .importlinter
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/backend
+
+      - name: tests + coverage floor
+        run: uv run pytest -q --cov --cov-report=term
+
+      - name: test order independence
+        # A pass here means no test depends on another's leftover state. The
+        # seed is random on purpose - a fixed one would only ever prove one order.
+        run: uv run pytest -q -p randomly
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+
+      - name: eslint (app isolation + warning ratchet)
+        run: npm run lint
+        working-directory: frontend
+
+      - name: tsc
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+      - name: vitest + coverage floor
+        run: npm run test:coverage
+        working-directory: frontend
+
+      - name: no circular imports
+        run: npx madge --circular --extensions ts,tsx --ts-config tsconfig.json src
+        working-directory: frontend
+
+      - name: build the static export
+        run: npm run build
+        working-directory: frontend
+
+  duplication:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Threshold is the measured 1.19% rounded up. One tool, both languages.
+      - run: >-
+          npx jscpd backend pipelines frontend/src
+          --min-lines 8 --min-tokens 60 --threshold 1.5
+          --ignore "**/node_modules/**,**/migrations/**,**/__pycache__/**,**/dbt_packages/**,**/target/**"
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: pip-audit
+        run: uv run --with pip-audit pip-audit
+
+      - run: npm ci
+        working-directory: frontend
+      - name: npm audit
+        run: npm audit --audit-level=high
+        working-directory: frontend
+
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+      - uses: github/codeql-action/analyze@v3
