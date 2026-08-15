@@ -1,0 +1,54 @@
+; Architecture contracts for the Python side, enforced by import-linter.
+;
+; These encode rules docs/ARCHITECTURE.md already states in prose. The frontend
+; half of the same rules is enforced by frontend/eslint.config.mjs; until this
+; file existed the Python half was enforced by nothing.
+;
+;   uv run lint-imports
+;
+; Root packages match pytest's pythonpath (backend + repo root), so `config`,
+; `shell`, `apps` and `pipelines` all resolve the way they do at runtime.
+
+[importlinter]
+root_packages =
+    config
+    shell
+    apps
+    pipelines
+include_external_packages = False
+
+[importlinter:contract:backend-pipelines-separation]
+name = The backend and the pipelines never import each other (ARCHITECTURE.md:23)
+type = forbidden
+source_modules =
+    config
+    shell
+    apps
+forbidden_modules =
+    pipelines
+
+[importlinter:contract:pipelines-backend-separation]
+name = The pipelines never import the backend (ARCHITECTURE.md:23)
+type = forbidden
+source_modules =
+    pipelines
+forbidden_modules =
+    config
+    shell
+    apps
+
+[importlinter:contract:app-independence]
+name = Apps must not import from other apps (ARCHITECTURE.md:139)
+type = independence
+modules =
+    apps.expense_tracker
+    apps.omni_erd
+    apps.admin_portal
+
+[importlinter:contract:shell-knows-no-apps]
+name = The shell reaches an app only through its declaration, never by import
+type = forbidden
+source_modules =
+    shell
+forbidden_modules =
+    apps
