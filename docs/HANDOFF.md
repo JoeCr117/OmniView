@@ -47,6 +47,7 @@ All five phases are complete and deployed.
 | 7 | **Omni-ERD** (third app) + API docs moved to the Admin Portal | ✅ complete (2026-07-20) |
 | 8 | **Omni-ERD milestone set 2** — inspect and manipulate the diagram | ✅ complete (2026-07-22), deployed — see [Phase 8 detail](#phase-8-progress--omni-erd-inspect-and-manipulate) |
 | 9 | **Omni-ERD milestone set 3** — key tags, toolbar pill, multi-select | ✅ complete (2026-07-23), deployed — see [Phase 9 detail](#phase-9-progress--omni-erd-key-tags-toolbar-pill-multi-select) |
+| 10 | **Objective quality measurement** — measured baselines, ratcheted gates, pre-commit + CI | ✅ complete (2026-08-15), not yet deployed — see [Phase 10 detail](#phase-10--objective-quality-measurement) |
 
 ---
 
@@ -651,6 +652,71 @@ LEFT JOINed two silver views whose window functions recomputed over the whole
 partition on every read — a flat **~1s regardless of `LIMIT`**, because a LIMIT
 cannot prune a window function. As a table the read is **~33ms local / ~184ms
 cloud**. A rebuild recomputes it, which is exactly the pipeline's contract.
+
+---
+
+## Phase 10 — Objective quality measurement
+
+Branch `feature/objective-quality-metrics`. The full record, with every number and its unit, is
+`quality/reports/baseline-audit.md`; how to re-run anything is `quality/README.md`.
+
+**The rule: measure, then freeze. Thresholds are the measured value, never a guessed one, and they
+move in the improving direction only.** Counts are gated in CI (deterministic); wall-clock timings
+stay local, because shared runners cannot time anything reliably.
+
+### What now blocks a commit or a build
+
+`.pre-commit-config.yaml` (fast, local): gitleaks · ruff · ruff-format · import-linter · mypy ·
+eslint · tsc. `.github/workflows/quality.yml` (blocking, on push/PR): backend, frontend, duplication,
+supply-chain and CodeQL jobs.
+
+`.importlinter` is the one worth knowing about — it turns two prose rules in `docs/ARCHITECTURE.md`
+(the backend and pipelines never import each other; apps never import apps) into a check. Every
+`ignore_imports` entry there is a documented deliberate edge, not a silenced violation.
+
+### Defects this found and closed
+
+- **A 500 on `POST /api/omni-erd/admin/overrides`** — a NUL byte or lone surrogate in a column name
+  reached Postgres and raised `DataError`. Now a 422 at the schema edge (`schemas.StorableText`);
+  the layout endpoint had the same hole through its JSONField keys.
+- **25 Python CVE advisories → 0** (Django 6.0.6→6.0.8, dbt-core 1.10.6→1.12.2 and others).
+- **11 npm advisories → 0** (Next 16.2.10→16.3.1).
+- **10 mypy errors → 0**, including a `str` widening into `Entity(kind=Literal[...])` in *both*
+  introspect backends.
+
+### Numbers as of this phase
+
+Backend coverage **82%** · frontend **57%** · duplication **1.19%** · JS shipped **518 kB** brotli ·
+504 backend tests, 370 Vitest, 32 Playwright · **0** import cycles · **0** CVEs · pipeline
+**deterministic** across repeated runs.
+
+### Gotchas worth not rediscovering
+
+- **Schemathesis fuzzes `POST /api/auth/logout` and destroys its own session**, after which every
+  request 401s. Exclude it, or the whole run is meaningless. It also needs `PYTHONIOENCODING=utf-8`
+  on Windows.
+- **Vitest v8 coverage reports only files a test already imports** unless `include` is set — which
+  scored this frontend at 86% instead of 52%, a denominator that improves when you delete a test.
+- **`useResource` caches at module scope.** Component tests sharing a resource key must call
+  `__clearResourceCache()` in `beforeEach` or each test paints its predecessor's data.
+- **The E2E fixture CSVs cannot drive the pipeline** (3-column web-layer stubs; `detect_schema`
+  rejects them). Determinism runs against `docs/examples/Banks/`.
+- **pre-commit passes explicit filenames**, which override `extend-exclude` — both ruff hooks need
+  `--force-exclude` or they reformat the generated migrations.
+- **`vulture` was evaluated and rejected**: 350 findings, ~0 actionable against declarative
+  Django/Ninja/Pydantic. Recorded in `quality/README.md` so it is not re-proposed.
+
+### Known debt, held by a ratchet
+
+`react-hooks/set-state-in-effect` — 7 pre-existing sites (next-themes hydration guards and
+load-on-mount fetching) that arrived as errors with eslint-config-next 16.3.1. Demoted to warnings
+and pinned by `npm run lint`'s `--max-warnings 7`; the number may only go down.
+
+### Not done
+
+CodeQL and the secret-*history* scan are configured but unproven — they only run once the branch is
+pushed. Still unmeasured: mutation score, `pg_stat_statements`, hyperfine/scalene/memray, Lighthouse
+CI, axe, `django-migration-linter`, hadolint/dive.
 
 ---
 

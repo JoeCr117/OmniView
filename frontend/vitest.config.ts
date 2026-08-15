@@ -21,10 +21,10 @@ export default defineConfig({
       // files a test already imports, which scored this same tree at 86% - a
       // denominator that improves when you delete a test. 52% is the real figure.
       thresholds: {
-        statements: 51,
-        branches: 47,
-        functions: 46,
-        lines: 51,
+        statements: 57,
+        branches: 51,
+        functions: 52,
+        lines: 57,
       },
     },
   },

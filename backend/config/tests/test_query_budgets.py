@@ -15,8 +15,8 @@ Scope is read endpoints over seeded data - the ones a page actually waits on.
 
 import pytest
 from django.contrib.auth.models import User
-from django.test.utils import CaptureQueriesContext
 from django.db import connections
+from django.test.utils import CaptureQueriesContext
 
 pytestmark = pytest.mark.django_db(databases=['default', 'datavault'])
 
