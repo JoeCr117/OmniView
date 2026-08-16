@@ -35,10 +35,23 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vitest's v8 coverage report - generated JS, not source.
+    "coverage/**",
   ]),
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
+      /**
+       * Demoted to a warning, and held at a fixed count by `npm run lint`'s
+       * `--max-warnings`. Seven call sites predate the rule (it arrived with
+       * eslint-config-next 16.3.1): the next-themes hydration guard
+       * (`useEffect(() => setMounted(true), [])`) and load-on-mount data
+       * fetching. Both are legitimate patterns whose replacement is a real
+       * refactor, not a lint fix - so the count is measured and frozen rather
+       * than suppressed. Lowering it is the only allowed direction.
+       * Tracked in quality/README.md.
+       */
+      "react-hooks/set-state-in-effect": "warn",
       "import/no-restricted-paths": ["error", { zones: crossAppImportZones }],
       // The app-router pages under src/app/(shell)/apps/<id>/ are the one place
       // that may pull in an app's own components; they are that app's pages.

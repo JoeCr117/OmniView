@@ -11,7 +11,7 @@ strings, and backend/config/tests/test_schema_contract.py asserts the two sides
 still agree.
 """
 
-__all__ = ['BankSource', 'load_bank_sources', 'BUDGET_MAP_TABLE', 'RAW_FILE_TABLE']
+__all__ = ['BUDGET_MAP_TABLE', 'RAW_FILE_TABLE', 'BankSource', 'load_bank_sources']
 
 from dataclasses import dataclass
 
@@ -37,15 +37,18 @@ class BankSource:
 def load_bank_sources(engine: Engine) -> list[BankSource]:
     """One BankSource per stored budget map, with that bank's CSVs attached."""
     with engine.connect() as conn:
-        budget_maps = conn.execute(text(
-            f'SELECT bank, yaml_text FROM "{OMNIVIEW_SCHEMA}".{BUDGET_MAP_TABLE} '
-            'ORDER BY bank'
-        )).all()
-        raw_files = conn.execute(text(
-            f'SELECT bank, account, filename, content '
-            f'FROM "{OMNIVIEW_SCHEMA}".{RAW_FILE_TABLE} '
-            'ORDER BY bank, account, filename'
-        )).all()
+        budget_maps = conn.execute(
+            text(
+                f'SELECT bank, yaml_text FROM "{OMNIVIEW_SCHEMA}".{BUDGET_MAP_TABLE} ORDER BY bank'
+            )
+        ).all()
+        raw_files = conn.execute(
+            text(
+                f'SELECT bank, account, filename, content '
+                f'FROM "{OMNIVIEW_SCHEMA}".{RAW_FILE_TABLE} '
+                'ORDER BY bank, account, filename'
+            )
+        ).all()
 
     files_by_bank: dict[str, dict[str, list[tuple[str, str]]]] = {}
     for bank, account, filename, content in raw_files:

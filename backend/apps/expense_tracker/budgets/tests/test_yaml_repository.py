@@ -61,13 +61,7 @@ class TestValidateBudgetMap:
         )
 
     def test_type_node_allows_arbitrary_nesting(self):
-        data = {
-            'Car': {
-                'SubCategories': {
-                    'Fuel': {'Type': {'A': {'B': {'C': ['DEEP MATCH']}}}}
-                }
-            }
-        }
+        data = {'Car': {'SubCategories': {'Fuel': {'Type': {'A': {'B': {'C': ['DEEP MATCH']}}}}}}}
         assert validate_budget_map(data) == []
 
     def test_subcategory_budgets_may_not_exceed_category_budget(self):

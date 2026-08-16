@@ -12,9 +12,30 @@ side stays a rename-free copy.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from ninja import Schema
+from pydantic import AfterValidator
+
+
+def _reject_unstorable(value: str) -> str:
+    if '\x00' in value:
+        raise ValueError('must not contain a NUL character')
+    try:
+        value.encode('utf-8')
+    except UnicodeEncodeError as exc:
+        raise ValueError('must not contain unpaired surrogate characters') from exc
+    return value
+
+
+#: Free text that reaches a JSONField, constrained to what the database can hold.
+#:
+#: Postgres text rejects NUL, and an unpaired surrogate has no UTF-8 encoding, so
+#: either one raises `DataError` from psycopg *during the INSERT* - past every
+#: service rule, and past django-ninja's error handling, which turns it into a 500
+#: with a traceback. Declaring the limit here makes it a 422 at the edge, which is
+#: what it is: a value the wire format allows and the store does not.
+StorableText = Annotated[str, AfterValidator(_reject_unstorable)]
 
 
 class ColumnTypeOut(Schema):
@@ -123,11 +144,13 @@ class PositionIn(Schema):
 
 class ViewStateIn(Schema):
     default_mode: ColumnMode = 'keys'
-    overrides: dict[str, ColumnMode] = {}
+    overrides: dict[StorableText, ColumnMode] = {}
 
 
 class LayoutIn(Schema):
-    positions: dict[str, PositionIn]
+    #: Keys are entity ids and land in a JSONField verbatim - `_clean_positions`
+    #: bounds how many there are, not what they contain.
+    positions: dict[StorableText, PositionIn]
     #: Optional so an older client - or a save that only moved a table - still
     #: validates. Absent means "unchanged", which `save_layout` honours.
     view_state: ViewStateIn | None = None
@@ -188,19 +211,19 @@ class RelationshipOverrideIn(Schema):
     *type* can constrain, and nothing here duplicates a service rule.
     """
 
-    source_id: str
+    source_id: StorableText
     #: Absent means the source's first namespace, which `services` resolves.
-    namespace: str | None = None
+    namespace: StorableText | None = None
     #: The referencing (many) side.
-    source_entity: str
+    source_entity: StorableText
     #: Paired positionally with `target_columns`; both empty when suppressing.
-    source_columns: list[str] = []
+    source_columns: list[StorableText] = []
     #: The referenced (one) side.
-    target_entity: str
-    target_columns: list[str] = []
+    target_entity: StorableText
+    target_columns: list[StorableText] = []
     action: OverrideAction
     cardinality: OverrideCardinality = 'many_to_one'
-    note: str = ''
+    note: StorableText = ''
 
 
 class OverrideIdOut(Schema):

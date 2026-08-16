@@ -161,7 +161,7 @@ def test_a_namespace_outside_the_allowlist_never_reaches_a_query(auth_on, client
     interpolated into catalog SQL."""
     client.force_login(granted_user)
 
-    response = client.get("/api/omni-erd/sources/pg-datavault/graph?namespace=pg_catalog")
+    response = client.get('/api/omni-erd/sources/pg-datavault/graph?namespace=pg_catalog')
 
     assert response.status_code == 404
 

@@ -8,7 +8,6 @@ lands on only one side fails here.
 """
 
 import re
-from pathlib import Path
 
 import pytest
 from django.conf import settings
@@ -59,7 +58,7 @@ def test_installed_apps_come_from_the_registry():
 
 def test_datavault_labels_belong_to_registered_apps():
     declared = {label for app in OMNIVIEW_APPS for label in app.datavault_labels}
-    assert DATAVAULT_APPS == declared
+    assert declared == DATAVAULT_APPS
 
 
 def test_legacy_redirects_point_into_their_app():

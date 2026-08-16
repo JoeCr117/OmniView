@@ -8,7 +8,7 @@ pipelines/expense_tracker/dbt/profiles.yml - all three read the same env vars so
 one deployment configures one database.
 """
 
-__all__ = ['pg_engine', 'DATAVAULT_SCHEMA', 'OMNIVIEW_SCHEMA']
+__all__ = ['DATAVAULT_SCHEMA', 'OMNIVIEW_SCHEMA', 'pg_engine']
 
 import os
 

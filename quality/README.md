@@ -1,0 +1,170 @@
+# quality/
+
+Objective measurement of the codebase. Every metric here is produced by a tool and carries a unit;
+nothing in this directory encodes a style opinion.
+
+Two rules govern this directory:
+
+1. **Discovery precedes enforcement.** Thresholds are set from measured values, never guessed.
+2. **Gate on counts in CI, gate on time locally.** Counts (queries, bytes, violations, coverage,
+   mutation score) are deterministic. Wall-clock timings are noisy on shared runners and live in
+   `baselines/perf/` from a workstation run.
+
+Measurements never read `Data/`. The dynamic tier uses test fixtures and the isolated `omniview_e2e`
+database.
+
+## Layout
+
+| Path | What it holds |
+|---|---|
+| `baselines/` | Committed ratchet values. A check fails when a number gets worse than its baseline. |
+| `baselines/openapi.json` | API snapshot for `oasdiff` breaking-change detection. |
+| `baselines/perf/` | Locally measured timings. Not produced in CI. |
+| `reports/` | Generated output. Only `baseline-audit.md` is committed; raw tool dumps are ignored. |
+
+## Re-running the measurements
+
+All tools run through `uvx` / `npx` and are not project dependencies until adopted as gates.
+
+```powershell
+# Lint census
+uvx ruff@latest check backend pipelines deploy --statistics
+
+# Complexity (complexipy has a native ratchet: --snapshot-create / --diff <ref>)
+uvx complexipy backend pipelines deploy --output quality/reports --output-format json
+uvx radon cc backend pipelines deploy -n C -s --total-average
+uvx radon mi backend pipelines deploy -n B -s
+
+# Types
+uv run --with mypy mypy backend pipelines --ignore-missing-imports
+
+# Architecture contracts
+$env:PYTHONPATH = "$PWD;$PWD\backend"
+uv run --with import-linter lint-imports --config .importlinter
+
+# Duplication (one tool, both languages)
+npx jscpd backend pipelines frontend/src --min-lines 8 --min-tokens 60 `
+  --reporters consoleFull,json --output quality/reports/jscpd
+
+# Frontend graph + dead code
+cd frontend
+npx madge --circular --extensions ts,tsx --ts-config tsconfig.json src
+npx knip
+
+# Supply chain
+uv run --with pip-audit pip-audit
+cd frontend; npm audit; npm outdated
+
+# Test order dependence (three runs must agree)
+uv run pytest -q
+uv run --with pytest-randomly pytest -q -p randomly --randomly-seed=12345
+uv run --with pytest-randomly pytest -q -p randomly --randomly-seed=98765
+```
+
+### Mutation score
+
+```powershell
+cd frontend; npm run mutation
+```
+
+The fraction of injected faults the suite kills — the one metric that says tests *check* something
+rather than merely execute it. Scoped to `src/apps/omni-erd/lib/` in `stryker.config.json`; whole-repo
+mutation is too slow to be useful. Break threshold is the measured score, and it may only go up.
+
+### Accessibility
+
+`e2e/accessibility.spec.ts` runs with the Playwright suite and asserts the **exact set of violated
+rule ids** per page, not a count. An exact set fails in both directions: a new violation fails, and so
+does a fixed one, which forces the baseline down instead of letting it drift up.
+
+### Database cost
+
+`pg_stat_statements` is preloaded by `docker/docker-compose.yml`. It needs enabling once per database:
+
+```powershell
+docker compose -f docker/docker-compose.yml exec db psql -U omniview -d omniview -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+```
+
+Then reset, exercise the thing you care about, and read it back:
+
+```sql
+SELECT pg_stat_statements_reset();
+-- ... run the pipeline, browse the app ...
+SELECT round(total_exec_time::numeric,1) AS total_ms, calls,
+       round(mean_exec_time::numeric,1) AS mean_ms,
+       left(regexp_replace(query,'\s+',' ','g'), 70) AS query
+  FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;
+```
+
+### Migrations and container
+
+```powershell
+Get-Content docker\Dockerfile -Raw | docker run --rm -i hadolint/hadolint:latest hadolint --no-color -
+```
+
+`django-migration-linter` has no management command registered (it is not in INSTALLED_APPS); drive
+it through its Python API — see `reports/baseline-audit.md` for the snippet and the measured result.
+Most of its findings are third-party migrations, so read it filtered to this project's app labels.
+
+### Pipeline determinism
+
+Runs the ETL twice from identical sources and compares a content hash of every relation it
+builds. Refuses to run unless `PGDATABASE=omniview_e2e`, because a rebuild drops the whole
+datavault schema. The E2E fixture CSVs are 3-column web-layer stubs that `detect_schema`
+rejects, so seed from the synthetic tree instead:
+
+```powershell
+docker compose -f docker/docker-compose.yml up -d db
+cd backend; $env:DJANGO_SETTINGS_MODULE='config.settings.e2e'
+uv run python manage.py e2e_bootstrap
+uv run python manage.py import_banks_dir ..\docs\examples\Banks
+cd ..
+$env:PGDATABASE='omniview_e2e'
+uv run python quality/determinism_check.py
+```
+
+### Bundle size
+
+`npm run size` measures **brotli-compressed** bytes — what a user downloads, not what sits on
+disk (1,987 KB raw of JS compresses to 518 kB). Needs `npm run build` first. Budgets are total
+per file type because Next content-hashes chunk filenames, so per-chunk budgets cannot be
+written down.
+
+### API fuzzing
+
+Needs the E2E harness. Three things bite, all documented in the audit's "Tool fitness" section:
+`PYTHONIOENCODING=utf-8` on Windows, authentication supplied as a raw `Cookie:` header, and
+`--exclude-path /api/auth/logout` — without it Schemathesis destroys its own session and every
+subsequent request 401s.
+
+```powershell
+docker compose -f docker/docker-compose.yml up -d db
+cd backend; $env:DJANGO_SETTINGS_MODULE='config.settings.e2e'
+uv run python manage.py e2e_bootstrap
+uv run python manage.py runserver 8100 --noreload
+# then log in as e2e-admin (see config/settings/e2e.py) and pass the session cookie:
+uv run --with schemathesis schemathesis run http://127.0.0.1:8100/api/openapi.json `
+  --header "Cookie: sessionid=<sid>; csrftoken=<csrf>" --header "X-CSRFToken: <csrf>" `
+  --exclude-path '/api/auth/logout' --exclude-path '/api/auth/login' --max-examples 20
+```
+
+## Known debt, held by a ratchet
+
+**`react-hooks/set-state-in-effect` — 7 warnings.** The rule arrived with eslint-config-next 16.3.1
+and flags two legitimate patterns already in the codebase: the next-themes hydration guard
+(`useEffect(() => setMounted(true), [])`) and load-on-mount data fetching. Replacing them is a
+refactor, not a lint fix, so the rule is demoted to a warning in `frontend/eslint.config.mjs` and
+`npm run lint` runs `--max-warnings 7`. **The number may only go down.** Sites:
+
+- `src/components/shell/UserMenu.tsx:39` and `src/app/(shell)/apps/admin-portal/api-docs/page.tsx:16`
+  — hydration guards
+- `src/app/(shell)/apps/expense-tracker/raw-csvs/page.tsx:47,63,75` and
+  `.../budget-map/page.tsx:127` — load-on-mount
+- `src/app/(auth)/login/page.tsx:66` — `setRedirecting` before a hard navigation
+
+## Tools deliberately not adopted
+
+- **`vulture`** — 350 findings, effectively zero actionable. Django/Ninja/Pydantic declarative code
+  and pytest fixture injection all read as dead to it.
+
+See `reports/baseline-audit.md` for the measured values and the reasoning.

@@ -1,14 +1,15 @@
-
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import List, Tuple, get_args
 from contextlib import contextmanager
+from pathlib import Path
+from typing import get_args
+
 from ..process import run_command, timed
 from .types import DBT_ARGS_N_TYPES, DBT_LOG_LEVEL_VALUES, FLAGS
 
 __all__ = ['DBT']
+
 
 class DBT:
     """
@@ -21,8 +22,8 @@ class DBT:
         self._used_keys: set[str] = set()
 
     @contextmanager
-    def _temporarily_remove_args(self, keys: List[str]):
-        removed_info: list[Tuple[int, list[str]]] = []  # (index, removed_chunk)
+    def _temporarily_remove_args(self, keys: list[str]):
+        removed_info: list[tuple[int, list[str]]] = []  # (index, removed_chunk)
         for key in keys:
             if key in self._used_keys:
                 idx = self.args.index(key)
@@ -30,8 +31,8 @@ class DBT:
                     removed_chunk = [self.args[idx]]
                     del self.args[idx]
                 else:
-                    removed_chunk = self.args[idx:idx + 2]
-                    del self.args[idx:idx + 2]
+                    removed_chunk = self.args[idx : idx + 2]
+                    del self.args[idx : idx + 2]
 
                 removed_info.append((idx, removed_chunk))
 
@@ -52,12 +53,12 @@ class DBT:
         """
         # Prevent duplicate flags
         if key in self._used_keys:
-            raise ValueError(f"Argument {key} already set.")
+            raise ValueError(f'Argument {key} already set.')
 
         # Handle flags (no value expected)
         if key in FLAGS:
             if value is not None:
-                raise TypeError(f"Flag {key} does not accept a value.")
+                raise TypeError(f'Flag {key} does not accept a value.')
             self.args.append(key)
             self._used_keys.add(key)
             return self
@@ -65,9 +66,9 @@ class DBT:
         # Validate value type
         allowed_types = DBT_ARGS_N_TYPES[key]
         if not isinstance(value, allowed_types):
-            allowed_str = ", ".join(t.__name__ for t in allowed_types)
+            allowed_str = ', '.join(t.__name__ for t in allowed_types)
             raise TypeError(
-                f"Invalid type for {key}. Expected one of: {allowed_str}, got {type(value).__name__}"
+                f'Invalid type for {key}. Expected one of: {allowed_str}, got {type(value).__name__}'
             )
 
         # Normalize Path objects to posix (forward slashes)
@@ -80,7 +81,6 @@ class DBT:
         self._used_keys.add(key)
 
         return self
-
 
     # ------------------------------
     # Methods for each dbt argument
@@ -121,11 +121,10 @@ class DBT:
         Accept a Python dict, serialize it to JSON, and append as --vars argument.
         """
         if not isinstance(value, dict):
-            raise TypeError(f"--vars expects a dict, got {type(value).__name__}")
+            raise TypeError(f'--vars expects a dict, got {type(value).__name__}')
         # Serialize dict to a JSON string
         json_str = f"'{json.dumps(value)}'"
         return self._set('--vars', json_str)
-
 
     # Int args
     def set_threads(self, value: int) -> DBT:
@@ -151,21 +150,22 @@ class DBT:
 
         # Construct the command list and join into a single string
         cmd_list = ['dbt', command] + (extra_args if extra_args else []) + self.args
-        cmd_str = " ".join(str(part) for part in cmd_list)
+        cmd_str = ' '.join(str(part) for part in cmd_list)
 
         # Use the shared run_command helper for consistent logging and error handling
         run_command(cmd_str)
         return self
 
-
     # ------------------------------
     # High-level commands
     # ------------------------------
     @timed
-    def run_debug(self) -> DBT: return self._run('debug')
+    def run_debug(self) -> DBT:
+        return self._run('debug')
 
     @timed
-    def run_clean(self) -> DBT: return self._run('clean')
+    def run_clean(self) -> DBT:
+        return self._run('clean')
 
     @timed
     def run_deps(self) -> DBT:
@@ -173,23 +173,20 @@ class DBT:
             return self._run('deps')
 
     @timed
-    def run_build(self) -> DBT: return self._run('build')
+    def run_build(self) -> DBT:
+        return self._run('build')
 
     @timed
-    def run_docs_generate(self) -> DBT: return self._run('docs', ['generate'])
+    def run_docs_generate(self) -> DBT:
+        return self._run('docs', ['generate'])
 
     @timed
-    def run_docs_serve(self) -> DBT: return self._run('docs', ['serve'])
+    def run_docs_serve(self) -> DBT:
+        return self._run('docs', ['serve'])
 
     @timed
     def run_all(self, docs_generate: bool = False, docs_serve: bool = False) -> DBT:
-        (
-            self
-            .run_debug()
-            .run_clean()
-            .run_deps()
-            .run_build()
-        )
+        (self.run_debug().run_clean().run_deps().run_build())
         if docs_generate:
             self.run_docs_generate()
         if docs_generate and docs_serve:

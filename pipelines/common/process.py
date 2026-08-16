@@ -11,8 +11,9 @@ __all__ = ['run_command', 'timed']
 import functools
 import subprocess
 import time
+from collections.abc import Callable
 from subprocess import CalledProcessError, CompletedProcess
-from typing import Callable, ParamSpec, Tuple, TypeVar
+from typing import ParamSpec, TypeVar
 
 P = ParamSpec('P')
 R = TypeVar('R')
@@ -41,7 +42,7 @@ def timed(func: Callable[P, R]) -> Callable[P, R]:
 
 
 @timed
-def run_command(command: str) -> Tuple[str, str, int]:
+def run_command(command: str) -> tuple[str, str, int]:
     """Run a shell command, echoing it and its output.
 
     Returns (stdout, stderr, returncode). Raises RuntimeError on a non-zero

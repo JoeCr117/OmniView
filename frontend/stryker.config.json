@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation score: the fraction of deliberately injected faults the suite kills. Line coverage says code ran; this says it was checked. Scoped to Omni-ERD's lib because that is where the real logic lives (SELECT generation, join graph, key roles) and where a silent wrong answer is expensive - a diagram that draws a join nobody can run. Whole-repo mutation is too slow to be useful; this is the subset worth the minutes.",
+  "testRunner": "vitest",
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/apps/omni-erd/lib/buildSelect.ts",
+    "src/apps/omni-erd/lib/joinGraph.ts",
+    "src/apps/omni-erd/lib/keyRoles.ts",
+    "src/apps/omni-erd/lib/searchIndex.ts",
+    "src/apps/omni-erd/lib/displayMode.ts",
+    "src/apps/omni-erd/lib/overrideDraft.ts"
+  ],
+  "reporters": ["progress", "clear-text"],
+  "clearTextReporter": {
+    "maxTestsToLog": 0
+  },
+  "_thresholds_comment": "break is the measured score at adoption (83.39, floored). Raise it when the score rises; never lower it to make a run pass.",
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 83
+  },
+  "timeoutMS": 60000,
+  "tempDirName": ".stryker-tmp"
+}

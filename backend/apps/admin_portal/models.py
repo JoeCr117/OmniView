@@ -5,7 +5,9 @@ from django.db import models
 # admin_only (the Admin Portal is staff-gated by shell.security.AdminAuth, so it
 # is never granted). Derived, not maintained - a new app becomes grantable by
 # registering, not by editing this file.
-from shell.registry import GRANTABLE_APP_IDS  # noqa: F401  (re-exported; api/schemas import it here)
+from shell.registry import (
+    GRANTABLE_APP_IDS,  # noqa: F401  (re-exported; api/schemas import it here)
+)
 
 
 class AppAccess(models.Model):

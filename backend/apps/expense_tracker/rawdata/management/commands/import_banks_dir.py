@@ -35,9 +35,7 @@ class Command(BaseCommand):
         maps = files = 0
         for bank_dir in bank_dirs:
             bank = bank_dir.name
-            yml_files = sorted(
-                p for p in bank_dir.iterdir() if p.is_file() and p.suffix == '.yml'
-            )
+            yml_files = sorted(p for p in bank_dir.iterdir() if p.is_file() and p.suffix == '.yml')
             if len(yml_files) != 1:
                 raise CommandError(
                     f'{bank_dir} must contain exactly one root .yml budget map, '

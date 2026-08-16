@@ -35,6 +35,13 @@ def lakebase_token() -> str:
         credential = WorkspaceClient().postgres.generate_database_credential(
             endpoint=os.environ['ENDPOINT_NAME']
         )
+        if credential.token is None:
+            # Raised here rather than returned: a None reaches psycopg as a
+            # missing password and surfaces as an authentication failure that
+            # names the database, not the credential mint that actually failed.
+            raise RuntimeError(
+                f'Lakebase returned no token for endpoint {os.environ["ENDPOINT_NAME"]!r}.'
+            )
         _cached_token = credential.token
         _cached_at = time.monotonic()
         return _cached_token

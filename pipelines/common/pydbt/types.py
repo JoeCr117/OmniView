@@ -1,7 +1,7 @@
-from typing import Literal, Dict, Tuple, Type
 from pathlib import Path
+from typing import Literal
 
-DBT_ARGS_N_TYPES: Dict[str, Tuple[Type, ...]] = {
+DBT_ARGS_N_TYPES: dict[str, tuple[type, ...]] = {
     '--project-dir': (Path,),
     '--profiles-dir': (Path,),
     '--log-path': (Path,),

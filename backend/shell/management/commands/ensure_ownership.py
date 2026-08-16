@@ -88,7 +88,9 @@ class Command(BaseCommand):
 
         params = {'schema': SCHEMA, 'role': OWNER_ROLE}
         with connection.cursor() as cursor:
-            cursor.execute('select exists (select 1 from pg_roles where rolname = %(role)s)', params)
+            cursor.execute(
+                'select exists (select 1 from pg_roles where rolname = %(role)s)', params
+            )
             if not cursor.fetchone()[0]:
                 self.stdout.write(
                     f'Ownership skipped: role {OWNER_ROLE!r} does not exist (single-owner deployment).'
@@ -104,9 +106,13 @@ class Command(BaseCommand):
             after = cursor.fetchone()[0]
 
         if before == 0:
-            self.stdout.write(f'Ownership already correct: all {SCHEMA} relations owned by {OWNER_ROLE}.')
+            self.stdout.write(
+                f'Ownership already correct: all {SCHEMA} relations owned by {OWNER_ROLE}.'
+            )
         elif after == 0:
-            self.stdout.write(f'Ownership fixed: {before} {SCHEMA} relation(s) handed to {OWNER_ROLE}.')
+            self.stdout.write(
+                f'Ownership fixed: {before} {SCHEMA} relation(s) handed to {OWNER_ROLE}.'
+            )
         else:
             # Not fatal: the app still runs, and the objects it could not
             # reassign are ones it does not own - which is exactly the state

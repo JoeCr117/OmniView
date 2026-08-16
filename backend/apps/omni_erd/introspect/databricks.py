@@ -34,9 +34,17 @@ identity only.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from ..ir import Column, Entity, KeyConstraint, Relationship, RelationshipEnd, normalize_type
+from ..ir import (
+    Column,
+    Entity,
+    EntityKind,
+    KeyConstraint,
+    Relationship,
+    RelationshipEnd,
+    normalize_type,
+)
 from .base import IntrospectionUnavailable
 
 #: Warehouse cold starts can exceed the statement API's max inline wait.
@@ -92,7 +100,7 @@ SELECT rc.constraint_name,
 """
 
 #: UC table_type -> our EntityKind.
-_KIND_BY_TABLE_TYPE = {
+_KIND_BY_TABLE_TYPE: dict[str, EntityKind] = {
     'MANAGED': 'table',
     'EXTERNAL': 'external_table',
     'VIEW': 'view',
@@ -300,4 +308,4 @@ def parse_relationships(namespace: str, foreign_key_rows: list) -> list[Relation
 
 
 def captured_at() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

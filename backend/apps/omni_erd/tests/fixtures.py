@@ -14,6 +14,7 @@ from ..ir import (
     Column,
     Entity,
     KeyConstraint,
+    OverrideAction,
     Relationship,
     RelationshipEnd,
     RelationshipOverride,
@@ -88,7 +89,7 @@ def override(
     source_columns: tuple[str, ...] = (),
     target: str = '',
     target_columns: tuple[str, ...] = (),
-    action: str = 'join',
+    action: OverrideAction = 'join',
     **kwargs,
 ) -> RelationshipOverride:
     """An admin's assertion, spelled the way an admin makes one: two entity ids

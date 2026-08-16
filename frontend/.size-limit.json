@@ -1,0 +1,12 @@
+[
+  {
+    "name": "JS shipped by the static export (brotli)",
+    "path": "out/_next/static/**/*.js",
+    "limit": "540 kB"
+  },
+  {
+    "name": "CSS shipped by the static export (brotli)",
+    "path": "out/_next/static/**/*.css",
+    "limit": "20 kB"
+  }
+]

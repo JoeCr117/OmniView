@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('omni_erd', '0002_erdlayout_view_state'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -16,26 +15,66 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='ErdRelationshipOverride',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                (
+                    'id',
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name='ID'
+                    ),
+                ),
                 ('source_id', models.CharField(max_length=100)),
                 ('namespace', models.CharField(max_length=200)),
                 ('entity_a', models.CharField(db_collation='C', max_length=300)),
                 ('entity_b', models.CharField(db_collation='C', max_length=300)),
-                ('action', models.CharField(choices=[('join', 'Join'), ('suppress', 'Suppress')], max_length=10)),
+                (
+                    'action',
+                    models.CharField(
+                        choices=[('join', 'Join'), ('suppress', 'Suppress')], max_length=10
+                    ),
+                ),
                 ('columns_a', models.JSONField(default=list)),
                 ('columns_b', models.JSONField(default=list)),
-                ('many_side', models.CharField(choices=[('a', 'entity_a'), ('b', 'entity_b')], default='a', max_length=1)),
+                (
+                    'many_side',
+                    models.CharField(
+                        choices=[('a', 'entity_a'), ('b', 'entity_b')], default='a', max_length=1
+                    ),
+                ),
                 ('cardinality', models.CharField(default='many_to_one', max_length=20)),
                 ('note', models.CharField(blank=True, default='', max_length=500)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('updated_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
+                (
+                    'created_by',
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name='+',
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    'updated_by',
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name='+',
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
                 'db_table': 'omnierd_relationshipoverride',
                 'ordering': ['source_id', 'namespace', 'entity_a', 'entity_b'],
-                'constraints': [models.UniqueConstraint(fields=('source_id', 'namespace', 'entity_a', 'entity_b'), name='unique_erd_relationship_override'), models.CheckConstraint(condition=models.Q(('entity_a__lt', models.F('entity_b'))), name='erd_override_pair_is_ordered')],
+                'constraints': [
+                    models.UniqueConstraint(
+                        fields=('source_id', 'namespace', 'entity_a', 'entity_b'),
+                        name='unique_erd_relationship_override',
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(('entity_a__lt', models.F('entity_b'))),
+                        name='erd_override_pair_is_ordered',
+                    ),
+                ],
             },
         ),
     ]

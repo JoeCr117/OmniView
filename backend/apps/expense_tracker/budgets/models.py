@@ -33,13 +33,13 @@ class BudgetMap(models.Model):
     volume (mod 100,000). It is never round-tripped through the YAML edit API.
     """
 
-    category_sk = models.IntegerField(db_column="categorysk", primary_key=True)
-    category = models.TextField(db_column="category")
-    category_budget = models.FloatField(db_column="categorybudget", null=True)
-    sub_category = models.TextField(db_column="subcategory")
-    sub_category_budget = models.FloatField(db_column="subcategorybudget", null=True)
+    category_sk = models.IntegerField(db_column='categorysk', primary_key=True)
+    category = models.TextField(db_column='category')
+    category_budget = models.FloatField(db_column='categorybudget', null=True)
+    sub_category = models.TextField(db_column='subcategory')
+    sub_category_budget = models.FloatField(db_column='subcategorybudget', null=True)
 
     class Meta:
         managed = False
-        db_table = "gold_Golden1_BudgetMap"
-        ordering = ["category", "sub_category"]
+        db_table = 'gold_Golden1_BudgetMap'
+        ordering = ['category', 'sub_category']

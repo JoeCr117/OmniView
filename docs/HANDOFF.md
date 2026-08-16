@@ -47,6 +47,7 @@ All five phases are complete and deployed.
 | 7 | **Omni-ERD** (third app) + API docs moved to the Admin Portal | ✅ complete (2026-07-20) |
 | 8 | **Omni-ERD milestone set 2** — inspect and manipulate the diagram | ✅ complete (2026-07-22), deployed — see [Phase 8 detail](#phase-8-progress--omni-erd-inspect-and-manipulate) |
 | 9 | **Omni-ERD milestone set 3** — key tags, toolbar pill, multi-select | ✅ complete (2026-07-23), deployed — see [Phase 9 detail](#phase-9-progress--omni-erd-key-tags-toolbar-pill-multi-select) |
+| 10 | **Objective quality measurement** — measured baselines, ratcheted gates, pre-commit + CI | ✅ complete (2026-08-15), not yet deployed — see [Phase 10 detail](#phase-10--objective-quality-measurement) |
 
 ---
 
@@ -651,6 +652,108 @@ LEFT JOINed two silver views whose window functions recomputed over the whole
 partition on every read — a flat **~1s regardless of `LIMIT`**, because a LIMIT
 cannot prune a window function. As a table the read is **~33ms local / ~184ms
 cloud**. A rebuild recomputes it, which is exactly the pipeline's contract.
+
+---
+
+## Phase 10 — Objective quality measurement
+
+Branch `feature/objective-quality-metrics`. The full record, with every number and its unit, is
+`quality/reports/baseline-audit.md`; how to re-run anything is `quality/README.md`.
+
+**The rule: measure, then freeze. Thresholds are the measured value, never a guessed one, and they
+move in the improving direction only.** Counts are gated in CI (deterministic); wall-clock timings
+stay local, because shared runners cannot time anything reliably.
+
+### What now blocks a commit or a build
+
+`.pre-commit-config.yaml` (fast, local): gitleaks · ruff · ruff-format · import-linter · mypy ·
+eslint · tsc. `.github/workflows/quality.yml` (blocking, on push/PR): backend, frontend, duplication,
+supply-chain and CodeQL jobs.
+
+`.importlinter` is the one worth knowing about — it turns two prose rules in `docs/ARCHITECTURE.md`
+(the backend and pipelines never import each other; apps never import apps) into a check. Every
+`ignore_imports` entry there is a documented deliberate edge, not a silenced violation.
+
+### Defects this found and closed
+
+- **A 500 on `POST /api/omni-erd/admin/overrides`** — a NUL byte or lone surrogate in a column name
+  reached Postgres and raised `DataError`. Now a 422 at the schema edge (`schemas.StorableText`);
+  the layout endpoint had the same hole through its JSONField keys.
+- **25 Python CVE advisories → 0** (Django 6.0.6→6.0.8, dbt-core 1.10.6→1.12.2 and others).
+- **11 npm advisories → 0** (Next 16.2.10→16.3.1).
+- **10 mypy errors → 0**, including a `str` widening into `Entity(kind=Literal[...])` in *both*
+  introspect backends.
+
+### Numbers as of this phase
+
+Backend coverage **82%** · frontend **57%** · duplication **1.19%** · JS shipped **518 kB** brotli ·
+504 backend tests, 370 Vitest, 32 Playwright · **0** import cycles · **0** CVEs · pipeline
+**deterministic** across repeated runs.
+
+### Gotchas worth not rediscovering
+
+- **Schemathesis fuzzes `POST /api/auth/logout` and destroys its own session**, after which every
+  request 401s. Exclude it, or the whole run is meaningless. It also needs `PYTHONIOENCODING=utf-8`
+  on Windows.
+- **Vitest v8 coverage reports only files a test already imports** unless `include` is set — which
+  scored this frontend at 86% instead of 52%, a denominator that improves when you delete a test.
+- **`useResource` caches at module scope.** Component tests sharing a resource key must call
+  `__clearResourceCache()` in `beforeEach` or each test paints its predecessor's data.
+- **The E2E fixture CSVs cannot drive the pipeline** (3-column web-layer stubs; `detect_schema`
+  rejects them). Determinism runs against `docs/examples/Banks/`.
+- **pre-commit passes explicit filenames**, which override `extend-exclude` — both ruff hooks need
+  `--force-exclude` or they reformat the generated migrations.
+- **`vulture` was evaluated and rejected**: 350 findings, ~0 actionable against declarative
+  Django/Ninja/Pydantic. Recorded in `quality/README.md` so it is not re-proposed.
+
+### Known debt, held by a ratchet
+
+`react-hooks/set-state-in-effect` — 7 pre-existing sites (next-themes hydration guards and
+load-on-mount fetching) that arrived as errors with eslint-config-next 16.3.1. Demoted to warnings
+and pinned by `npm run lint`'s `--max-warnings 7`; the number may only go down.
+
+### The two findings nothing else would have caught
+
+**A test module that was never committed.** `.gitignore` had `*test_data*` for dbt scratch data, and
+`test_databricks_parsing.py` begins `test_data`(bricks) — 8 tests present on one machine and in no
+clone. It surfaced only as a 1.5-point coverage gap between this workstation and the Linux runner,
+which looked like a platform difference until the per-file miss counts were diffed. Pattern is now
+`*test_data*` + `!**/test_*.py`.
+
+**The coverage gate was flaky.** Re-running it repeatedly failed about one run in four: one vitest
+worker per core, each with a V8 heap plus jsdom plus coverage instrumentation, dying with
+`Zone Allocation failed - process out of memory`. Dead workers report no coverage, so the run came
+back ~51% instead of ~57%. Capped at `maxWorkers: 4`; 8 consecutive runs now identical. A gate that
+fails at random trains you to re-run CI instead of reading it.
+
+### Mutation score — 83.39%
+
+`npm run mutation` (StrykerJS, scoped to `apps/omni-erd/lib/`). It found what coverage could not:
+`searchIndex.ts` had **95% line coverage and a 67.65% mutation score**, and deleting its entire
+`scored.sort(...)` killed no test — ranking was unverified, because the existing ordering tests
+passed on unsorted input. Now 86.76%. Break threshold 83.
+
+### Accessibility — axe, WCAG 2.0/2.1 A + AA
+
+`e2e/accessibility.spec.ts` asserts the **exact set of violated rule ids** per page, so a fixed
+violation fails too and forces the baseline down. Login and launcher are clean; the avatar fallback's
+muted-on-muted contrast was fixed. What remains is one structural `aria-required-children` in the tab
+bar (ours) and four rules from Tabulator's generated markup.
+
+### Database cost
+
+`pg_stat_statements` is preloaded by the compose `db` service (needs `CREATE EXTENSION` once per
+database). One full rebuild: 108 statements, 260 calls, 1,281.9 ms — of which **a single statement is
+1,166 ms, 91% of all database time**, corroborating `gold_Golden1_DailyMetrics` at 1.16 s of a 3.25 s
+dbt build. One model is the warehouse's cost.
+
+### Not done
+
+Four measurements remain, each blocked on something specific: **Lighthouse CI** (needs the
+authenticated harness served with a session cookie), **hyperfine** (`choco install` needs elevation),
+**scalene** (its 2.3 runner exits non-zero on this pipeline), **memray** (Linux/macOS only), **dive**
+(needs the app image built). `gitleaks` passes on the working tree but has not been run over full
+history.
 
 ---
 

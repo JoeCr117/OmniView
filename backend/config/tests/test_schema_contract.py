@@ -61,6 +61,7 @@ def test_pipeline_reads_the_tables_django_writes():
     """The raw SQL in the pipeline names these tables literally - keep in sync."""
     from apps.expense_tracker.budgets.models import BudgetMapDocument
     from apps.expense_tracker.rawdata.models import RawFile
+
     from pipelines.expense_tracker.banks.source import BUDGET_MAP_TABLE, RAW_FILE_TABLE
 
     assert BudgetMapDocument._meta.db_table == BUDGET_MAP_TABLE

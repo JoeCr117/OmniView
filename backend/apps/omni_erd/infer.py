@@ -105,15 +105,11 @@ def resolve_override(
     """
     source = by_id.get(override.source.entity)
     if source is None:
-        return OverrideProblem(
-            'unknown_entity', f'{override.source.entity} is not in this diagram'
-        )
+        return OverrideProblem('unknown_entity', f'{override.source.entity} is not in this diagram')
 
     target = by_id.get(override.target.entity)
     if target is None:
-        return OverrideProblem(
-            'unknown_entity', f'{override.target.entity} is not in this diagram'
-        )
+        return OverrideProblem('unknown_entity', f'{override.target.entity} is not in this diagram')
 
     if source.id == target.id:
         return OverrideProblem('self_pair', f'{source.id} cannot be joined to itself')

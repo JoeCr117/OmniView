@@ -36,6 +36,16 @@ name: omniview
 services:
   db:
     image: postgres:17-alpine
+    # pg_stat_statements records calls, total and mean time per normalised query,
+    # cumulatively, for free. It ships with the image but has to be preloaded at
+    # startup - it cannot be enabled on a running server. `CREATE EXTENSION
+    # pg_stat_statements;` once per database, then quality/README.md has the query.
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
     environment:
       POSTGRES_DB: omniview
       POSTGRES_USER: omniview

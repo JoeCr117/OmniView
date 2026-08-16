@@ -7,7 +7,7 @@ from .schemas import DailyMetricOut
 router = Router()
 
 
-@router.get("", response=list[DailyMetricOut])
+@router.get('', response=list[DailyMetricOut])
 @paginate(LimitOffsetPagination)
 def list_daily_metrics(request, start: str | None = None, end: str | None = None):
     qs = DailyMetric.objects.all()
@@ -18,6 +18,6 @@ def list_daily_metrics(request, start: str | None = None, end: str | None = None
     return qs
 
 
-@router.get("/summary", response=DailyMetricOut)
+@router.get('/summary', response=DailyMetricOut)
 def daily_metrics_summary(request):
-    return DailyMetric.objects.latest("date_sk")
+    return DailyMetric.objects.latest('date_sk')

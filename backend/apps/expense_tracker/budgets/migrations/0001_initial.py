@@ -4,21 +4,25 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
             name='BudgetMap',
             fields=[
-                ('category_sk', models.IntegerField(db_column='categorysk', primary_key=True, serialize=False)),
+                (
+                    'category_sk',
+                    models.IntegerField(db_column='categorysk', primary_key=True, serialize=False),
+                ),
                 ('category', models.TextField(db_column='category')),
                 ('category_budget', models.FloatField(db_column='categorybudget', null=True)),
                 ('sub_category', models.TextField(db_column='subcategory')),
-                ('sub_category_budget', models.FloatField(db_column='subcategorybudget', null=True)),
+                (
+                    'sub_category_budget',
+                    models.FloatField(db_column='subcategorybudget', null=True),
+                ),
             ],
             options={
                 'db_table': 'gold_Golden1_BudgetMap',
@@ -29,7 +33,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='BudgetMapDocument',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                (
+                    'id',
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name='ID'
+                    ),
+                ),
                 ('bank', models.CharField(max_length=100, unique=True)),
                 ('yaml_text', models.TextField()),
                 ('updated_at', models.DateTimeField(auto_now=True)),

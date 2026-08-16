@@ -17,8 +17,15 @@ FIXTURES_DIR = Path(__file__).resolve().parents[4] / 'docs' / 'examples' / 'Bank
 
 #: Golden1's 2026 export header, as `sniff_header` returns it.
 V2_HEADER: tuple[str, ...] = (
-    'Date', 'Account', 'Account Type', 'Description',
-    'Check #', 'Category', 'Credit', 'Debit', 'Daily Balance',
+    'Date',
+    'Account',
+    'Account Type',
+    'Description',
+    'Check #',
+    'Category',
+    'Credit',
+    'Debit',
+    'Daily Balance',
 )
 
 #: The same header as the first line of a CSV, for tests that build a v2 file

@@ -15,11 +15,11 @@ from django.views.static import serve
 # output: "export"), so Django answers them with a 301 to the app namespace.
 # Which pages those are is each app's business (legacy_pages in its
 # omniview_app.py); this view only knows how to serve the redirect.
-from shell.registry import LEGACY_REDIRECTS  # noqa: F401  (re-exported for tests)
+from shell.registry import LEGACY_REDIRECTS
 
 # Route prefixes, not app ids: Omni-ERD as a whole is grant-level, only its
 # relationship editor is staff-only.
-STAFF_ONLY_PAGE_PREFIXES = ("apps/admin-portal", "apps/omni-erd/relationships")
+STAFF_ONLY_PAGE_PREFIXES = ('apps/admin-portal', 'apps/omni-erd/relationships')
 
 
 def _needs_login(request, resource: str) -> bool:
@@ -33,9 +33,9 @@ def _needs_login(request, resource: str) -> bool:
     """
     if not settings.OMNIVIEW_AUTH_REQUIRED or request.user.is_authenticated:
         return False
-    if resource == "login" or resource.startswith("_next/"):
+    if resource == 'login' or resource.startswith('_next/'):
         return False
-    return "." not in resource.rsplit("/", 1)[-1]
+    return '.' not in resource.rsplit('/', 1)[-1]
 
 
 def _staff_only_page(request, resource: str) -> bool:
@@ -55,9 +55,9 @@ def _staff_only_page(request, resource: str) -> bool:
     return not request.user.is_staff
 
 
-def frontend_view(request, resource: str = ""):
+def frontend_view(request, resource: str = ''):
     root = settings.FRONTEND_EXPORT_DIR
-    resource = resource.strip("/")
+    resource = resource.strip('/')
 
     if resource in LEGACY_REDIRECTS:
         return HttpResponsePermanentRedirect(LEGACY_REDIRECTS[resource])
@@ -66,18 +66,18 @@ def frontend_view(request, resource: str = ""):
         return redirect_to_login(request.get_full_path())
 
     if _staff_only_page(request, resource):
-        raise Http404("Not found")
+        raise Http404('Not found')
 
-    if resource == "":
-        return serve(request, "index.html", document_root=root)
+    if resource == '':
+        return serve(request, 'index.html', document_root=root)
 
     # Real static assets (e.g. _next/static/..., favicon.ico, *.svg) exist verbatim.
     if (root / resource).is_file():
         return serve(request, resource, document_root=root)
 
     # App router pages export as "<route>.html" alongside a same-named directory.
-    html_candidate = f"{resource}.html"
+    html_candidate = f'{resource}.html'
     if (root / html_candidate).is_file():
         return serve(request, html_candidate, document_root=root)
 
-    raise Http404(f"No static frontend asset for {resource!r}")
+    raise Http404(f'No static frontend asset for {resource!r}')

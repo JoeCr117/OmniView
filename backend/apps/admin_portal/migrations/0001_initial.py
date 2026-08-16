@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -17,16 +16,40 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AppAccess',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                (
+                    'id',
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name='ID'
+                    ),
+                ),
                 ('app_id', models.CharField(max_length=100)),
                 ('granted_at', models.DateTimeField(auto_now_add=True)),
-                ('granted_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='app_access', to=settings.AUTH_USER_MODEL)),
+                (
+                    'granted_by',
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name='+',
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    'user',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name='app_access',
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
                 'verbose_name_plural': 'app accesses',
                 'ordering': ['user_id', 'app_id'],
-                'constraints': [models.UniqueConstraint(fields=('user', 'app_id'), name='unique_app_access_per_user')],
+                'constraints': [
+                    models.UniqueConstraint(
+                        fields=('user', 'app_id'), name='unique_app_access_per_user'
+                    )
+                ],
             },
         ),
     ]

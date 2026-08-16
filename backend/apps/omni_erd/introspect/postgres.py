@@ -27,11 +27,19 @@ from __future__ import annotations
 
 from django.db import connections
 
-from ..ir import Column, Entity, KeyConstraint, Relationship, RelationshipEnd, normalize_type
+from ..ir import (
+    Column,
+    Entity,
+    EntityKind,
+    KeyConstraint,
+    Relationship,
+    RelationshipEnd,
+    normalize_type,
+)
 
 #: pg_class.relkind -> our EntityKind. 'r' ordinary, 'p' partitioned, 'v' view,
 #: 'm' materialized view, 'f' foreign table.
-_KIND_BY_RELKIND = {
+_KIND_BY_RELKIND: dict[str, EntityKind] = {
     'r': 'table',
     'p': 'table',
     'v': 'view',

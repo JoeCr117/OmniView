@@ -8,10 +8,9 @@ by default, and these tests flip it on via the auth_on fixture.
 """
 
 import pytest
+from apps.expense_tracker.tests.fixtures import VALID_BUDGET_MAP
 from django.contrib.auth.models import User
 from django.test import Client
-
-from apps.expense_tracker.tests.fixtures import VALID_BUDGET_MAP
 
 YAML_URL = '/api/expense-tracker/budgets/yaml?bank=Golden1'
 

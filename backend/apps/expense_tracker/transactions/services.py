@@ -1,6 +1,7 @@
 from django.db.models import Sum
 
 from apps.expense_tracker.budgets.models import BudgetMap
+
 from .models import AllTransaction
 
 
@@ -35,17 +36,19 @@ def budget_analysis(start: str | None = None, end: str | None = None) -> list[di
         qs = qs.filter(calendar_date__lte=end)
 
     actuals = {
-        row["category_sk"]: row["total"]
-        for row in qs.values("category_sk").annotate(total=Sum("transaction_amount"))
+        row['category_sk']: row['total']
+        for row in qs.values('category_sk').annotate(total=Sum('transaction_amount'))
     }
 
     rows = []
     for budget in BudgetMap.objects.all():
-        rows.append({
-            "category": budget.category,
-            "sub_category": budget.sub_category,
-            "category_budget": budget.category_budget,
-            "sub_category_budget": budget.sub_category_budget,
-            "actual": actuals.get(budget.category_sk, 0.0),
-        })
+        rows.append(
+            {
+                'category': budget.category,
+                'sub_category': budget.sub_category,
+                'category_budget': budget.category_budget,
+                'sub_category_budget': budget.sub_category_budget,
+                'actual': actuals.get(budget.category_sk, 0.0),
+            }
+        )
     return rows

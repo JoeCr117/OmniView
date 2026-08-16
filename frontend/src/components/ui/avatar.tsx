@@ -49,7 +49,10 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
+        // text-foreground, not text-muted-foreground: muted-on-muted is the one
+        // colour pair in the shell that fails WCAG AA contrast, and this fallback
+        // (the user's initials) is on every authenticated page.
+        "flex size-full items-center justify-center rounded-full bg-muted text-sm text-foreground group-data-[size=sm]/avatar:text-xs",
         className
       )}
       {...props}

@@ -7,7 +7,6 @@ malformed payloads via the Schema (422).
 
 import logging
 
-import pytest
 from django.contrib.auth.models import User
 
 URL = '/api/logs/frontend'
@@ -34,22 +33,29 @@ def test_ingests_and_logs_under_frontend_namespace(client, db, caplog):
 
 def test_level_maps_to_python_levels(client, db, caplog):
     with caplog.at_level(logging.DEBUG, logger='omniview.frontend'):
-        assert client.post(
-            URL,
-            data={'level': 'warn', 'message': 'careful'},
-            content_type='application/json',
-        ).status_code == 204
+        assert (
+            client.post(
+                URL,
+                data={'level': 'warn', 'message': 'careful'},
+                content_type='application/json',
+            ).status_code
+            == 204
+        )
     record = next(r for r in caplog.records if r.name == 'omniview.frontend')
     assert record.levelno == logging.WARNING
 
 
 def test_rejects_bad_level_and_missing_message(client, db):
-    assert client.post(
-        URL, data={'level': 'fatal', 'message': 'x'}, content_type='application/json'
-    ).status_code == 422
-    assert client.post(
-        URL, data={'level': 'error'}, content_type='application/json'
-    ).status_code == 422
+    assert (
+        client.post(
+            URL, data={'level': 'fatal', 'message': 'x'}, content_type='application/json'
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(URL, data={'level': 'error'}, content_type='application/json').status_code
+        == 422
+    )
 
 
 def test_rejects_oversized_message(client, db):

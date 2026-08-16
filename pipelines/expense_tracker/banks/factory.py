@@ -1,8 +1,9 @@
 # banks/factory.py
 
+from .all_banks import Golden1
 from .bank import Bank
 from .source import BankSource
-from .all_banks import Golden1
+
 
 def bank_factory(source: BankSource) -> Bank:
     bank_name = source.name
@@ -10,6 +11,6 @@ def bank_factory(source: BankSource) -> Bank:
     if bank_name == 'Golden1':
         return Golden1(source)
     raise ValueError(
-        f"Could not create bank {bank_name}: no Bank subclass is registered "
-        "for it (see banks/factory.py)."
+        f'Could not create bank {bank_name}: no Bank subclass is registered '
+        'for it (see banks/factory.py).'
     )

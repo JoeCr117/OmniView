@@ -1,7 +1,7 @@
-{{ 
+{{
 	config(
 		materialized = 'view'
-	) 
+	)
 }}
 WITH
 -- 1. Get raw EOD balances for each table
@@ -56,7 +56,7 @@ EOD4 AS (
 
 -- 2. All calendar dates
 AllDates AS (
-SELECT 
+SELECT
     d.CalendarDate
     , d.DateSK
 FROM {{ ref('gold_DimDate') }} d
@@ -71,13 +71,13 @@ Merged AS (
         e3.t3_EODBalance,
         e4.t4_EODBalance,
         d.DateSK
-    FROM 
+    FROM
         AllDates d
         LEFT JOIN EOD1 e1 ON d.DateSK = e1.DateSK
         LEFT JOIN EOD2 e2 ON d.DateSK = e2.DateSK
         LEFT JOIN EOD3 e3 ON d.DateSK = e3.DateSK
         LEFT JOIN EOD4 e4 ON d.DateSK = e4.DateSK
-), 
+),
 
 -- 4. Final carry-forward of balances
 CarryForward AS (
@@ -124,7 +124,7 @@ CarryForward AS (
 
     FROM Merged m
 ), date_filter AS (
-    SELECT 
+    SELECT
         MIN(CalendarDate) AS min_date
         , MAX(CalendarDate) AS max_date
     FROM (
@@ -147,6 +147,6 @@ SELECT
     , DateSK
 FROM
     CarryForward
-WHERE 
+WHERE
     1=1
     AND CarryForward.CalendarDate BETWEEN (SELECT min_date FROM date_filter) AND (SELECT max_date FROM date_filter)

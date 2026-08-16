@@ -6,7 +6,7 @@ caller's privileges, except the self-demotion guard.
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import islice
 from pathlib import Path
 
@@ -65,9 +65,7 @@ def _require_grantable(app_id: str) -> None:
 def grant_app(user_id: int, app_id: str, granted_by) -> None:
     _require_grantable(app_id)
     user = _get_user(user_id)
-    AppAccess.objects.get_or_create(
-        user=user, app_id=app_id, defaults={'granted_by': granted_by}
-    )
+    AppAccess.objects.get_or_create(user=user, app_id=app_id, defaults={'granted_by': granted_by})
 
 
 def revoke_app(user_id: int, app_id: str) -> None:
@@ -90,6 +88,7 @@ def set_admin(user_id: int, is_staff: bool, acting_user):
 
 # --- Databricks jobs monitoring ---------------------------------------------
 
+
 def _run_row(run, job_names: dict) -> dict:
     state = run.state
     life_cycle = getattr(state.life_cycle_state, 'value', None) if state else None
@@ -104,9 +103,7 @@ def _run_row(run, job_names: dict) -> dict:
         'life_cycle_state': life_cycle or 'UNKNOWN',
         'result_state': result,
         'start_time': (
-            datetime.fromtimestamp(run.start_time / 1000, tz=timezone.utc)
-            if run.start_time
-            else None
+            datetime.fromtimestamp(run.start_time / 1000, tz=UTC) if run.start_time else None
         ),
         'duration_ms': duration_ms,
         'run_page_url': run.run_page_url,
@@ -116,9 +113,7 @@ def _run_row(run, job_names: dict) -> dict:
 def jobs_overview(client) -> dict:
     """Running / completed / failed run lists with workspace deep links."""
     jobs = list(islice(client.jobs.list(limit=JOBS_LIST_LIMIT), 100))
-    job_names = {
-        job.job_id: (job.settings.name if job.settings else None) for job in jobs
-    }
+    job_names = {job.job_id: (job.settings.name if job.settings else None) for job in jobs}
     running = [
         _run_row(run, job_names)
         for run in islice(client.jobs.list_runs(active_only=True, limit=JOBS_LIST_LIMIT), 25)
@@ -166,14 +161,14 @@ def jobs_overview_for(request) -> dict:
 
 # --- Databricks cost monitoring ----------------------------------------------
 
+
 def run_warehouse_sql(client, sql_name: str, params: dict) -> list[dict]:
     """Execute apps/admin_portal/sql/<sql_name>.sql on the configured warehouse via
     the SQL Statement Execution API; returns rows as dicts of strings."""
     warehouse_id = settings.OMNIVIEW_SQL_WAREHOUSE_ID
     if not warehouse_id:
         raise DatabricksNotConnected(
-            'No SQL warehouse configured (OMNIVIEW_SQL_WAREHOUSE_ID) - cost '
-            'data is unavailable.'
+            'No SQL warehouse configured (OMNIVIEW_SQL_WAREHOUSE_ID) - cost data is unavailable.'
         )
     from databricks.sdk.service.sql import StatementParameterListItem
 
@@ -203,7 +198,9 @@ def run_warehouse_sql(client, sql_name: str, params: dict) -> list[dict]:
         error = getattr(response.status, 'error', None)
         raise DatabricksNotConnected(f'SQL statement {state}: {getattr(error, "message", error)}')
     columns = [col.name for col in response.manifest.schema.columns]
-    return [dict(zip(columns, row)) for row in (response.result.data_array or [])]
+    # strict: a row that does not match the manifest is a broken response, and
+    # zipping it loosely would silently drop a column from every row.
+    return [dict(zip(columns, row, strict=True)) for row in (response.result.data_array or [])]
 
 
 def costs_overview(client, days: int) -> dict:
@@ -220,7 +217,9 @@ def costs_overview(client, days: int) -> dict:
     daily: dict[str, dict] = {}
     by_sku: dict[str, dict] = {}
     for row in rows:
-        day = daily.setdefault(row['date'], {'date': row['date'], 'dbus': 0.0, 'list_cost_usd': 0.0})
+        day = daily.setdefault(
+            row['date'], {'date': row['date'], 'dbus': 0.0, 'list_cost_usd': 0.0}
+        )
         day['dbus'] += row['dbus']
         day['list_cost_usd'] += row['list_cost_usd']
         sku = by_sku.setdefault(row['sku'], {'sku': row['sku'], 'dbus': 0.0, 'list_cost_usd': 0.0})
@@ -253,6 +252,7 @@ def costs_overview_for(request, days: int) -> dict:
 
 
 # --- Cross-area overview ------------------------------------------------------
+
 
 def portal_overview(request) -> dict:
     """Landing-tab KPIs. DB-backed numbers always work; Databricks-backed
