@@ -41,8 +41,15 @@ frontend/playwright-report/
 # Log files
 *.log
 
-# Test files (dbt scratch/test data only - not Django tests.py/tests/)
+# Test DATA (dbt scratch), never test CODE.
+#
+# The negation is load-bearing: `*test_data*` also matches
+# `test_databricks_parsing.py` - "test_data"(bricks) - which kept an entire
+# 8-test module untracked and invisible to CI for as long as it existed. It was
+# found by a 1.5-point coverage gap between this machine and a Linux runner,
+# not by review. Any pytest module is code and must never be swept up here.
 *test_data*
+!**/test_*.py
 
 # Deployment STATE, not source: the manifest records the live workspace host,
 # Lakebase endpoint hostname, app URL and service-principal client id of a
