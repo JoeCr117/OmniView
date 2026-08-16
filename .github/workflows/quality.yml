@@ -94,6 +94,24 @@ jobs:
         run: npm run size
         working-directory: frontend
 
+  mutation:
+    # The one metric that says the tests *check* something rather than merely
+    # execute it. Scoped to Omni-ERD's lib in stryker.config.json; whole-repo
+    # mutation would take too long to gate on.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - name: mutation score
+        run: npm run mutation
+        working-directory: frontend
+
   duplication:
     runs-on: ubuntu-latest
     steps:

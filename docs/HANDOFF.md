@@ -712,11 +712,48 @@ Backend coverage **82%** · frontend **57%** · duplication **1.19%** · JS ship
 load-on-mount fetching) that arrived as errors with eslint-config-next 16.3.1. Demoted to warnings
 and pinned by `npm run lint`'s `--max-warnings 7`; the number may only go down.
 
+### The two findings nothing else would have caught
+
+**A test module that was never committed.** `.gitignore` had `*test_data*` for dbt scratch data, and
+`test_databricks_parsing.py` begins `test_data`(bricks) — 8 tests present on one machine and in no
+clone. It surfaced only as a 1.5-point coverage gap between this workstation and the Linux runner,
+which looked like a platform difference until the per-file miss counts were diffed. Pattern is now
+`*test_data*` + `!**/test_*.py`.
+
+**The coverage gate was flaky.** Re-running it repeatedly failed about one run in four: one vitest
+worker per core, each with a V8 heap plus jsdom plus coverage instrumentation, dying with
+`Zone Allocation failed - process out of memory`. Dead workers report no coverage, so the run came
+back ~51% instead of ~57%. Capped at `maxWorkers: 4`; 8 consecutive runs now identical. A gate that
+fails at random trains you to re-run CI instead of reading it.
+
+### Mutation score — 83.39%
+
+`npm run mutation` (StrykerJS, scoped to `apps/omni-erd/lib/`). It found what coverage could not:
+`searchIndex.ts` had **95% line coverage and a 67.65% mutation score**, and deleting its entire
+`scored.sort(...)` killed no test — ranking was unverified, because the existing ordering tests
+passed on unsorted input. Now 86.76%. Break threshold 83.
+
+### Accessibility — axe, WCAG 2.0/2.1 A + AA
+
+`e2e/accessibility.spec.ts` asserts the **exact set of violated rule ids** per page, so a fixed
+violation fails too and forces the baseline down. Login and launcher are clean; the avatar fallback's
+muted-on-muted contrast was fixed. What remains is one structural `aria-required-children` in the tab
+bar (ours) and four rules from Tabulator's generated markup.
+
+### Database cost
+
+`pg_stat_statements` is preloaded by the compose `db` service (needs `CREATE EXTENSION` once per
+database). One full rebuild: 108 statements, 260 calls, 1,281.9 ms — of which **a single statement is
+1,166 ms, 91% of all database time**, corroborating `gold_Golden1_DailyMetrics` at 1.16 s of a 3.25 s
+dbt build. One model is the warehouse's cost.
+
 ### Not done
 
-CodeQL and the secret-*history* scan are configured but unproven — they only run once the branch is
-pushed. Still unmeasured: mutation score, `pg_stat_statements`, hyperfine/scalene/memray, Lighthouse
-CI, axe, `django-migration-linter`, hadolint/dive.
+Four measurements remain, each blocked on something specific: **Lighthouse CI** (needs the
+authenticated harness served with a session cookie), **hyperfine** (`choco install` needs elevation),
+**scalene** (its 2.3 runner exits non-zero on this pipeline), **memray** (Linux/macOS only), **dive**
+(needs the app image built). `gitleaks` passes on the working tree but has not been run over full
+history.
 
 ---
 

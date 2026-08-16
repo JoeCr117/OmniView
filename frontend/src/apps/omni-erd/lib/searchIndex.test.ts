@@ -160,6 +160,61 @@ describe("searchEntries", () => {
     expect(names("APP_LABEL")).toContain("django_content_type.app_label");
   });
 
+  /**
+   * The ordering rules, pinned against input that already contradicts them.
+   *
+   * The earlier ranking tests pass whether or not `searchEntries` sorts at all,
+   * because `buildIndex` happens to emit tables before columns and mostly in
+   * ascending score order - so the unsorted list satisfies them by accident.
+   * Mutation testing is what exposed that: deleting the entire `scored.sort(...)`
+   * call killed no test. Each case below is built so the *input* order is the
+   * opposite of the expected output.
+   */
+  describe("ordering", () => {
+    it("puts a higher score first even when it arrives last", () => {
+      // "dd" is a bare substring of "adder" (40) and a prefix of "dd_exact"
+      // (80), and the weaker match is indexed first.
+      const index = buildIndex(graph([entity("adder", []), entity("dd_exact", [])]));
+
+      const names = searchEntries(index, "dd").map((e) => e.entityName);
+
+      expect(names).toEqual(["dd_exact", "adder"]);
+    });
+
+    it("puts a table before a column when the column is indexed first", () => {
+      // "shared" scores 100 on both: an exact table name and an exact column
+      // name. The owning table is listed second so input order cannot carry it.
+      const index = buildIndex(
+        graph([entity("other", [column("shared")]), entity("shared", [])]),
+      );
+
+      const kinds = searchEntries(index, "shared").map((e) => e.kind);
+
+      expect(kinds[0]).toBe("table");
+    });
+
+    it("breaks a remaining tie by key, not by catalog order", () => {
+      // Two tables, equal score, deliberately indexed in reverse key order.
+      const index = buildIndex(graph([entity("zzz_match", []), entity("aaa_match", [])]));
+
+      const names = searchEntries(index, "match").map((e) => e.entityName);
+
+      expect(names).toEqual(["aaa_match", "zzz_match"]);
+    });
+
+    it("applies the cap to the ranked list, so the best match survives it", () => {
+      // 60 weak substring matches indexed before one exact match: with the cap
+      // applied to an unranked list the exact hit would be cut.
+      const weak = Array.from({ length: 60 }, (_, i) => entity(`pre_hit_${i}`, []));
+      const index = buildIndex(graph([...weak, entity("hit", [])]));
+
+      const names = searchEntries(index, "hit", 5).map((e) => e.entityName);
+
+      expect(names[0]).toBe("hit");
+      expect(names).toHaveLength(5);
+    });
+  });
+
   it("caps the result count after filtering, not before", () => {
     // 60 filler columns match, but only the cap is returned - and the cap is
     // applied to matches, so nothing is excluded from consideration.

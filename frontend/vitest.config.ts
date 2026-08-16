@@ -9,6 +9,14 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // Capped because coverage is a *gate*, and an unbounded worker pool made it
+    // non-deterministic: with one worker per core, each carrying its own V8 heap
+    // plus jsdom plus coverage instrumentation, workers died with "Zone
+    // Allocation failed - process out of memory". A dead worker reports no
+    // coverage for its files, so the run came back ~51% instead of ~57% and
+    // failed the threshold - roughly one run in four, with nothing wrong in the
+    // code. Four workers is stable here and costs about a second.
+    maxWorkers: 4,
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],

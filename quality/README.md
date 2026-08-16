@@ -61,6 +61,51 @@ uv run --with pytest-randomly pytest -q -p randomly --randomly-seed=12345
 uv run --with pytest-randomly pytest -q -p randomly --randomly-seed=98765
 ```
 
+### Mutation score
+
+```powershell
+cd frontend; npm run mutation
+```
+
+The fraction of injected faults the suite kills — the one metric that says tests *check* something
+rather than merely execute it. Scoped to `src/apps/omni-erd/lib/` in `stryker.config.json`; whole-repo
+mutation is too slow to be useful. Break threshold is the measured score, and it may only go up.
+
+### Accessibility
+
+`e2e/accessibility.spec.ts` runs with the Playwright suite and asserts the **exact set of violated
+rule ids** per page, not a count. An exact set fails in both directions: a new violation fails, and so
+does a fixed one, which forces the baseline down instead of letting it drift up.
+
+### Database cost
+
+`pg_stat_statements` is preloaded by `docker/docker-compose.yml`. It needs enabling once per database:
+
+```powershell
+docker compose -f docker/docker-compose.yml exec db psql -U omniview -d omniview -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+```
+
+Then reset, exercise the thing you care about, and read it back:
+
+```sql
+SELECT pg_stat_statements_reset();
+-- ... run the pipeline, browse the app ...
+SELECT round(total_exec_time::numeric,1) AS total_ms, calls,
+       round(mean_exec_time::numeric,1) AS mean_ms,
+       left(regexp_replace(query,'\s+',' ','g'), 70) AS query
+  FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;
+```
+
+### Migrations and container
+
+```powershell
+Get-Content docker\Dockerfile -Raw | docker run --rm -i hadolint/hadolint:latest hadolint --no-color -
+```
+
+`django-migration-linter` has no management command registered (it is not in INSTALLED_APPS); drive
+it through its Python API — see `reports/baseline-audit.md` for the snippet and the measured result.
+Most of its findings are third-party migrations, so read it filtered to this project's app labels.
+
 ### Pipeline determinism
 
 Runs the ETL twice from identical sources and compares a content hash of every relation it
