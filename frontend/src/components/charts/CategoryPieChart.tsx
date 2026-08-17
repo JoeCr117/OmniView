@@ -22,6 +22,13 @@ import { cn } from "@/lib/utils";
  * fastest way to make a pie unreadable.
  */
 
+/** The slice geometry Recharts hands a label renderer. */
+interface PieLabelGeometry {
+  index?: number;
+  cx?: number;
+  outerRadius?: number;
+}
+
 export interface PieSliceDatum {
   key: string;
   label: string;
@@ -38,6 +45,15 @@ const FOLDED_KEY = "__other__";
 
 /** Below this share a direct label is unreadable and collides with its neighbours. */
 const LABEL_MIN_PCT = 5;
+
+/**
+ * Horizontal room outside the pie, in px, needed before a label can afford to
+ * name its slice and its value rather than just the share. Measured against the
+ * longest real label ("Uncategorized $46,059 (26.06%)"); below it, those strings
+ * clip against the pane edge and each other, which is how the legacy report's
+ * layout fails when it is not given half a screen.
+ */
+const FULL_LABEL_ROOM = 190;
 
 /** What a slice outside the current selection fades to. */
 const DIMMED = 0.3;
@@ -74,6 +90,26 @@ export function foldToPalette(
   ];
 }
 
+/**
+ * What a slice's direct label says, given the horizontal room outside the pie.
+ *
+ * Wide: "Name $Value (pct%)", as the source report wrote it. Squeezed: the share
+ * alone, because the long form clips against the pane edge and its neighbours.
+ * Too small a share: nothing — a number on every sliver is the fastest way to
+ * make a pie unreadable. The name is always in the legend and the value always
+ * in the tooltip, so no label is the only route to a fact.
+ */
+export function sliceLabelText(
+  slice: PieSliceDatum,
+  room: number,
+  format: (value: number) => string,
+): string | null {
+  if (slice.pct < LABEL_MIN_PCT) return null;
+  return room >= FULL_LABEL_ROOM
+    ? `${slice.label} ${format(slice.value)} (${slice.pct}%)`
+    : `${slice.pct}%`;
+}
+
 export function CategoryPieChart({
   slices,
   ariaLabel,
@@ -90,7 +126,8 @@ export function CategoryPieChart({
   ariaLabel: string;
   /** How a magnitude is written in labels and the tooltip. */
   format?: (value: number) => string;
-  height?: number;
+  /** A pixel height, or a CSS length like "100%" to fill a sized parent. */
+  height?: number | string;
   emptyMessage?: string;
   className?: string;
   /** Slices to keep bright; every other slice dims. Empty or absent dims nothing. */
@@ -159,15 +196,15 @@ export function CategoryPieChart({
           // A hairline of surface between slices, so adjacent fills never touch.
           stroke="var(--background)"
           strokeWidth={2}
-          // The share only. The source report wrote "Name $Value (pct%)" beside
-          // every slice, which needs a pane roughly twice this wide - at this
-          // size those strings clip against the edge and each other. The name is
-          // in the legend and the exact value is in the tooltip; the percentage
-          // is the one number worth reading straight off a pie.
-          label={({ index }: { index?: number }) => {
+          // The label says as much as it has room to say. Given a wide pane it
+          // writes "Name $Value (pct%)", as the source report did; squeezed, it
+          // falls back to the share alone rather than clipping against the edge.
+          // Either way the name is in the legend and the value is in the tooltip,
+          // so nothing is only ever available in the label.
+          label={({ index, cx, outerRadius }: PieLabelGeometry) => {
             const slice = index === undefined ? undefined : data[index];
-            if (!slice || slice.pct < LABEL_MIN_PCT) return null;
-            return `${slice.pct}%`;
+            if (!slice) return null;
+            return sliceLabelText(slice, (cx ?? 0) - (outerRadius ?? 0), formatValue);
           }}
           labelLine={({ index, points }: { index?: number; points?: { x: number; y: number }[] }) => {
             const slice = index === undefined ? undefined : data[index];

@@ -60,7 +60,9 @@ export function BreakdownMatrix({
   }
 
   return (
-    <section aria-label="Transactions matrix">
+    // Fixed height when stacked, stretched to the grid row at xl: either way the
+    // height is definite, which is what lets Tabulator resolve `height: "100%"`.
+    <section aria-label="Transactions matrix" className="flex h-[70vh] min-h-0 flex-col xl:h-auto">
       <DrillToolbar
         drill={drill}
         hierarchy={MATRIX_HIERARCHY}
@@ -82,11 +84,12 @@ export function BreakdownMatrix({
         key={`${dims.join("-")}|${accountTypes.join("-")}|${expandAll}`}
         data={nodes}
         columns={columns}
+        className="min-h-0 flex-1"
         placeholder="No transactions in this selection."
         onRowClick={handleRowClick}
         options={{
           layout: "fitColumns",
-          height: "70vh",
+          height: "100%",
           dataTree: true,
           dataTreeChildField: "_children",
           dataTreeStartExpanded: expandAll,

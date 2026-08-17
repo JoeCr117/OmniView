@@ -28,7 +28,9 @@ import { E2E_ADMIN, logIn } from "./helpers";
  *   structural change to the tab bar, not an attribute.
  * - `aria-allowed-attr` / `aria-roles` / `aria-valid-attr` / the second
  *   `aria-required-children` on the check book are **Tabulator's** generated
- *   markup (`div[aria-title=…]`, `.tabulator`). Not fixable from here.
+ *   markup (`div[aria-title=…]`, `.tabulator`). Not fixable from here. They come
+ *   specifically from its *grouped* column headers - the Breakdown matrix runs
+ *   the same grid with flat columns and carries none of them.
  * - `color-contrast` on the Omni-ERD diagram is the column type/badge palette on
  *   the table cards.
  *
@@ -67,6 +69,19 @@ test("the check book carries only the known tab-bar and Tabulator violations", a
     "aria-roles",
     "aria-valid-attr",
   ]);
+});
+
+test("the breakdown report carries only the known tab-bar violation", async ({ page }) => {
+  await logIn(page, "/apps/expense-tracker/breakdown");
+  // Both the grid and the charts arrive by dynamic import; scanning earlier
+  // would measure a page that has not drawn its visuals yet.
+  await expect(page.locator(".tabulator").first()).toBeVisible();
+  await expect(page.getByRole("img", { name: "Expenses by Category" })).toBeVisible();
+
+  // Notably *not* the three Tabulator rules the check book carries: those come
+  // from its grouped column headers, and this matrix's columns are flat. Two
+  // Recharts charts add nothing, because each is a labelled `img`.
+  expect(await violatedRules(page)).toEqual(["aria-required-children"]);
 });
 
 test("the admin user table carries only the known tab-bar violation", async ({ page }) => {

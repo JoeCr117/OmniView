@@ -83,7 +83,12 @@ export default function BreakdownPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-7xl p-6">
+    // Full width and, from xl, exactly the height of the shell's scroll area:
+    // three linked visuals are read together, so the page should not make the
+    // reader scroll between them, and a centred column would waste the width
+    // the matrix's six currency columns want. Other pages cap at max-w-6xl
+    // because prose and a single table read better narrow; this one does not.
+    <main className="flex w-full flex-col p-6 xl:min-h-0 xl:flex-1">
       <RefreshBar active={isValidating} />
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Breakdown</h1>
@@ -108,12 +113,12 @@ export default function BreakdownPage() {
       />
       {/* The matrix carries six columns of currency, so it takes the wider
           share; below xl there is not room for both, and they stack. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+      <div className="grid min-h-0 flex-1 gap-6 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <BreakdownMatrix
           rows={rowsFor(scoped, selection, "matrix")}
           onSelect={(criterion, extend) => select("matrix", criterion, extend)}
         />
-        <div className="flex flex-col gap-6">
+        <div className="flex min-h-0 flex-col gap-6">
           <BreakdownWaterfall
             rows={rowsFor(scoped, selection, "waterfall")}
             highlightKeys={highlightedKeys(selection, "waterfall")}

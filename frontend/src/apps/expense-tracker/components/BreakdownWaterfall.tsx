@@ -84,7 +84,10 @@ export function BreakdownWaterfall({
   }
 
   return (
-    <section aria-label="Transactions waterfall">
+    <section
+      aria-label="Transactions waterfall"
+      className="flex h-[320px] min-h-0 flex-col xl:h-auto xl:flex-1"
+    >
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold">{drillTitle("Transactions", drill, hierarchy)}</h2>
         <div className="flex gap-1">
@@ -111,20 +114,23 @@ export function BreakdownWaterfall({
         status={drillMode ? "Click a bar to drill into it." : undefined}
       />
 
-      <LazyWaterfallChart
-        bars={bars}
-        x={{ label: dim ? DIMENSION_TITLES[dim] : "" }}
-        y={{
-          label: "Transactions",
-          unit: "USD",
-          format: formatUsd,
-          tickFormat: formatUsdCompact,
-        }}
-        ariaLabel={drillTitle("Transactions", drill, hierarchy)}
-        emptyMessage="No transactions in this selection."
-        highlightKeys={highlightKeys}
-        onSelect={handleSelect}
-      />
+      <div className="min-h-0 flex-1">
+        <LazyWaterfallChart
+          height="100%"
+          bars={bars}
+          x={{ label: dim ? DIMENSION_TITLES[dim] : "" }}
+          y={{
+            label: "Transactions",
+            unit: "USD",
+            format: formatUsd,
+            tickFormat: formatUsdCompact,
+          }}
+          ariaLabel={drillTitle("Transactions", drill, hierarchy)}
+          emptyMessage="No transactions in this selection."
+          highlightKeys={highlightKeys}
+          onSelect={handleSelect}
+        />
+      </div>
     </section>
   );
 }

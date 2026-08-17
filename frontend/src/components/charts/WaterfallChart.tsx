@@ -92,7 +92,8 @@ export function WaterfallChart({
   y: WaterfallValueSpec;
   /** Required: what this chart is *of*. Screen readers get nothing else. */
   ariaLabel: string;
-  height?: number;
+  /** A pixel height, or a CSS length like "100%" to fill a sized parent. */
+  height?: number | string;
   emptyMessage?: string;
   className?: string;
   /** Bars to keep bright; every other bar dims. Empty or absent dims nothing. */

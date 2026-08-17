@@ -48,7 +48,7 @@ All five phases are complete and deployed.
 | 8 | **Omni-ERD milestone set 2** — inspect and manipulate the diagram | ✅ complete (2026-07-22), deployed — see [Phase 8 detail](#phase-8-progress--omni-erd-inspect-and-manipulate) |
 | 9 | **Omni-ERD milestone set 3** — key tags, toolbar pill, multi-select | ✅ complete (2026-07-23), deployed — see [Phase 9 detail](#phase-9-progress--omni-erd-key-tags-toolbar-pill-multi-select) |
 | 10 | **Objective quality measurement** — measured baselines, ratcheted gates, pre-commit + CI | ✅ complete (2026-08-15), not yet deployed — see [Phase 10 detail](#phase-10--objective-quality-measurement) |
-| 11 | **ExpenseTracker Breakdown** — the legacy Power BI matrix/waterfall/pie page, rebuilt in-app | 🚧 in progress (M1 of 7 done) — see [Phase 11 detail](#phase-11--expensetracker-breakdown) |
+| 11 | **ExpenseTracker Breakdown** — the legacy Power BI matrix/waterfall/pie page, rebuilt in-app | ✅ complete (2026-08-17), not yet deployed — see [Phase 11 detail](#phase-11--expensetracker-breakdown) |
 
 ---
 
@@ -774,8 +774,8 @@ committed — this repo is public).
 | M3 | Matrix + slicers (first visible milestone) | ✅ (`3516868`) |
 | M4 | Waterfall chart primitive | ✅ (`a7dd0b6`) |
 | M5 | Pie chart primitive | ✅ (`1a244c6`) |
-| M6 | Cross-filtering | ✅ |
-| M7 | Tests, accessibility, docs | ⬜ |
+| M6 | Cross-filtering | ✅ (`7385ead`) |
+| M7 | Layout, tests, accessibility, docs | ✅ |
 
 ### What M1 established, by measurement
 
@@ -949,6 +949,43 @@ Two mechanics worth not rediscovering:
   which is why those tests build one.
 - **`DataTable.onRowClick` now passes the originating event** alongside the row, so the matrix can
   tell an extend-click from a plain one.
+
+### M7 — the layout, and the gates
+
+**The page now fills its pane.** It was capped at `max-w-7xl`, which left **376px of empty margin** in
+a 1656px viewport and truncated the matrix's column headers, and it ran ~50px taller than the pane so
+the pie sat below the fold. It is now full-width and, from `xl`, exactly as tall as the viewport pane:
+matrix left at 7fr, the two charts stacked right at 5fr, each sized by flex rather than by a fixed
+height. Measured after: **no horizontal scrollbar anywhere, no vertical page scroll, no clipped
+labels**, and full column headers. An E2E test asserts the no-sideways-scroll part, because three
+linked visuals are read together and a sideways scrollbar means one is off screen while the reader
+looks at another.
+
+That required one **shell** change: `ViewportPane` is now a flex column, so a page can say `flex-1`
+and claim the height left over after the app's subnav without hardcoding that subnav's height. Pages
+that don't ask stay content-sized, and the subnav is `shrink-0`. The full E2E suite was run against
+it — navigation, fullscreen, dark mode and every app page pass unchanged.
+
+**The pie's labels now adapt to the room they have.** Given a wide pane they write
+`Investment $46,059 (26.06%)`, as the source report did; squeezed, they fall back to the share alone
+rather than clipping. `sliceLabelText` is exported and tested directly, because Recharts sizes itself
+from the stubbed `ResizeObserver` and the DOM cannot express "narrow" in jsdom.
+
+**Gates.** 493 Vitest across 48 files, 44 Playwright across 11, 513 backend. Coverage ratcheted
+**57/51/52/57 → 59/55/55/59** against a measured 60.46 / 56.71 / 56.13 / 60.4. Accessibility: the Breakdown page
+carries **only** `aria-required-children` (the tab bar, ours) — notably *not* the three Tabulator
+rules the check book carries, because those come from its grouped column headers and this matrix's
+columns are flat.
+
+**The JS budget moved 540 → 575 kB** (measured 563 kB). That is a capability increase, not drift: the
+waterfall and pie ship as their own lazy chunks (26 kB and 34 kB raw) beside the line chart's, so the
+**initial bundle is unchanged** and only a page that plots pays. The budget deliberately counts lazy
+chunks so a dependency cannot hide behind a dynamic import; lower it whenever measurement allows.
+
+Two testing gotchas worth not rediscovering, both now in `e2e/README.md`: a **pie sector cannot be
+clicked positionally** (its bounding-box centre is the pie's centre, a vertex every slice shares, so
+the click is ambiguous and hangs on actionability — dispatch the event instead), and **Recharts axis
+ticks carry no text on the tick element**, so count marks rather than reading them.
 
 ---
 

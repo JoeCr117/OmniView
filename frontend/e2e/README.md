@@ -19,6 +19,7 @@ milestone is called done (alongside pytest + vitest).
 | `navigation.spec.ts` | Rail visibility/active-marking, tabs open/close/reorder, "returns you where you left it". |
 | `charts.spec.ts` | Axis titles + `$` ticks + crosshair + cursor tooltip. |
 | `check-book.spec.ts` | The checkbook grid renders real rows. |
+| `breakdown.spec.ts` | Feed totals, slicer scoping, both charts drawing, matrix drill, pie cross-filter + Restart, no sideways scroll. |
 | `admin-portal.spec.ts` | Grant/revoke round-trip; non-admin API 403. |
 | `omni-erd.spec.ts` | Diagram draws; column modes; edge integrity; flyout; focus; search; layout + mode persistence. |
 | `dark-mode.spec.ts` · `fullscreen.spec.ts` · `legacy-redirect.spec.ts` | Theme, viewport fullscreen, old-URL 301s. |
@@ -36,7 +37,12 @@ milestone is called done (alongside pytest + vitest).
   overlay parts of it; click in-page via `evaluate` and target by `data-testid`.
 - Port 8100 (e2e), never 8000 (production container) or 8010 (compose dev).
 - SVG assertions use `textContent`/`toBeAttached` — SVG nodes have no `innerText`
-  and zero-box elements read as "hidden".
+  and zero-box elements read as "hidden". Recharts axis *ticks* have no text at
+  all on the tick element (it lives in a nested layer), so count marks instead.
+- **A pie sector cannot be clicked positionally.** Its bounding-box centre is the
+  pie's centre, a vertex every slice shares, so the click is ambiguous and hangs
+  on actionability; `dispatchEvent("click")` the sector's `path`. The real click
+  path is covered by the chart's own unit tests.
 - Needs the compose `db` running.
 
 ## See also

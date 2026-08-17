@@ -2,7 +2,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import { CategoryPieChart, foldToPalette, type PieSliceDatum } from "./CategoryPieChart";
+import {
+  CategoryPieChart,
+  foldToPalette,
+  sliceLabelText,
+  type PieSliceDatum,
+} from "./CategoryPieChart";
 
 // Recharts draws nothing when its container measures zero, which is what jsdom
 // reports for every element.
@@ -69,6 +74,27 @@ describe("foldToPalette", () => {
   });
 });
 
+describe("sliceLabelText", () => {
+  const rent: PieSliceDatum = { key: "Rent", label: "Rent", value: 600, pct: 60 };
+  const usd = (v: number) => `$${v}`;
+
+  it("writes name, value and share when there is room", () => {
+    expect(sliceLabelText(rent, 250, usd)).toBe("Rent $600 (60%)");
+  });
+
+  it("falls back to the share alone when there is not", () => {
+    // The legacy report's full string needs about half a screen; squeezed into
+    // a narrow pane it clips against the edge and its neighbours.
+    expect(sliceLabelText(rent, 80, usd)).toBe("60%");
+  });
+
+  it("says nothing at all for a sliver, at any width", () => {
+    const sliver: PieSliceDatum = { key: "S", label: "S", value: 1, pct: 1 };
+    expect(sliceLabelText(sliver, 400, usd)).toBeNull();
+    expect(sliceLabelText(sliver, 40, usd)).toBeNull();
+  });
+});
+
 describe("CategoryPieChart", () => {
   it("describes itself with the caller's label", () => {
     renderChart({ ariaLabel: "Expenses by SubCategory" });
@@ -110,8 +136,8 @@ describe("CategoryPieChart", () => {
     ];
     renderChart({ slices: mixed, format: (v) => `$${v}` });
 
-    expect(screen.getByText("90%")).toBeInTheDocument();
-    expect(screen.queryByText("1%")).not.toBeInTheDocument();
+    expect(screen.getByText("Big $900 (90%)")).toBeInTheDocument();
+    expect(screen.queryByText(/Sliver \$10/)).not.toBeInTheDocument();
     // Identity is never colour-alone: the sliver is still in the legend.
     expect(screen.getByText("Sliver")).toBeInTheDocument();
   });

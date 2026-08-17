@@ -21,11 +21,18 @@ export function DataTable({
   columns,
   options,
   onRowClick,
+  className,
   placeholder = "No rows to show.",
 }: {
   data: object[];
   columns: Options["columns"];
   options?: Omit<Options, "data" | "columns">;
+  /**
+   * Classes for the element Tabulator builds into. A grid told to fill its
+   * parent (`options.height: "100%"`) needs this to be a flex child with a
+   * definite height, or Tabulator resolves 100% against nothing.
+   */
+  className?: string;
   /**
    * Row clicks, if the grid wants them. Tabulator 6 moved `rowClick` out of the
    * options object into its event system, so it cannot be passed through
@@ -106,5 +113,5 @@ export function DataTable({
     }
   }, [data]);
 
-  return <div ref={holderRef} />;
+  return <div ref={holderRef} className={className} />;
 }

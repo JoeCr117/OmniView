@@ -58,7 +58,10 @@ export function BreakdownPie({
   }
 
   return (
-    <section aria-label="Expenses by category">
+    <section
+      aria-label="Expenses by category"
+      className="flex h-[320px] min-h-0 flex-col xl:h-auto xl:flex-1"
+    >
       <h2 className="text-sm font-semibold">{title}</h2>
       <DrillToolbar
         drill={drill}
@@ -68,14 +71,17 @@ export function BreakdownPie({
         onDrillModeChange={setDrillMode}
         status={drillMode ? "Click a slice to drill into it." : undefined}
       />
-      <LazyCategoryPieChart
-        slices={slices}
-        ariaLabel={title}
-        format={formatUsdWhole}
-        emptyMessage="No expenses in this selection."
-        highlightKeys={highlightKeys}
-        onSelect={handleSelect}
-      />
+      <div className="min-h-0 flex-1">
+        <LazyCategoryPieChart
+          height="100%"
+          slices={slices}
+          ariaLabel={title}
+          format={formatUsdWhole}
+          emptyMessage="No expenses in this selection."
+          highlightKeys={highlightKeys}
+          onSelect={handleSelect}
+        />
+      </div>
     </section>
   );
 }

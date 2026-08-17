@@ -16,7 +16,8 @@ it client-side, so slicer clicks and drills cost no request. The arithmetic is
 ## Contents
 | Item | What it does |
 |------|--------------|
-| `page.tsx` | Fetch + slicer state, composing `YearMonthSlicer` and `BreakdownMatrix`. |
+| `page.tsx` | Fetch, slicer state and cross-filter routing, composing the slicer and the three visuals. |
+| `page.test.tsx` | The wiring: one fetch, slicer scoping, cross-filter routing, highlight targeting, Restart. |
 
 ## Conventions & gotchas
 - Slicer semantics mirror Power BI: an empty selection means *all*, a plain click
@@ -31,6 +32,13 @@ it client-side, so slicer clicks and drills cost no request. The arithmetic is
   selection, or the pie would collapse to a single 100% slice with no way back.
 - Restart clears selections *and* slicers; it disables itself when there is
   nothing to clear.
+- **This page is full-width and, from `xl`, exactly as tall as the viewport
+  pane** — three linked visuals are read together, so it should not make the
+  reader scroll between them, and a centred `max-w-*` column would waste the
+  width the matrix's six currency columns want. That is why `ViewportPane` is a
+  flex column: the page claims the height left over after the app's subnav
+  without hardcoding that subnav's height. Other pages stay capped and
+  content-sized.
 
 ## See also
 - [expense-tracker/](../README.md) · [check-book/](../check-book/README.md) · [components/](../../../../../apps/expense-tracker/components/README.md)
