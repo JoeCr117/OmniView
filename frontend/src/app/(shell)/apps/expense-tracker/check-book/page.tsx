@@ -8,13 +8,8 @@ import { RefreshBar } from "@/components/common/progress";
 import { TableSkeleton } from "@/components/common/skeletons";
 import { dateColumnProps } from "@/apps/expense-tracker/lib/dates";
 import { money, txn } from "@/apps/expense-tracker/lib/money";
-import {
-  MONTH_LABELS,
-  inSlicerScope,
-  monthsInYears,
-  slicerPick,
-  yearsIn,
-} from "@/apps/expense-tracker/lib/slicer";
+import { inSlicerScope, monthsInYears, slicerPick } from "@/apps/expense-tracker/lib/slicer";
+import { YearMonthSlicer } from "@/apps/expense-tracker/components/YearMonthSlicer";
 import { useResource } from "@/lib/useResource";
 import type { ColumnDefinition } from "tabulator-tables";
 
@@ -79,10 +74,6 @@ export default function CheckBookPage() {
 
   const dates = useMemo(() => (data ?? []).map((d) => d.calendar_date), [data]);
 
-  const years = useMemo(() => yearsIn(dates), [dates]);
-
-  const monthsWithData = useMemo(() => monthsInYears(dates, selYears), [dates, selYears]);
-
   const rows = useMemo(
     () => (data ?? []).filter((d) => inSlicerScope(d.calendar_date, selYears, selMonths)),
     [data, selYears, selMonths],
@@ -117,34 +108,13 @@ export default function CheckBookPage() {
     <main style={{ padding: 24 }}>
       <RefreshBar active={isValidating} />
       <h1>Check Book</h1>
-      <div style={{ display: "flex", gap: 4, margin: "16px 0 8px" }}>
-        {years.map((y) => (
-          <button
-            key={y}
-            className={`slicer-btn${selYears.has(y) ? " active" : ""}`}
-            style={{ flex: 1 }}
-            onClick={(e) => pickYear(y, e.shiftKey || e.ctrlKey)}
-          >
-            {y}
-          </button>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-        {MONTH_LABELS.map((label, i) => {
-          const m = i + 1;
-          return (
-            <button
-              key={m}
-              className={`slicer-btn${selMonths.has(m) ? " active" : ""}`}
-              style={{ flex: 1 }}
-              disabled={!monthsWithData.has(m)}
-              onClick={(e) => pickMonth(m, e.shiftKey || e.ctrlKey)}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <YearMonthSlicer
+        dates={dates}
+        selectedYears={selYears}
+        selectedMonths={selMonths}
+        onYearPick={pickYear}
+        onMonthPick={pickMonth}
+      />
       <DataTable
         data={rows}
         columns={columns}

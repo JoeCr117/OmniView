@@ -94,7 +94,15 @@
   border-left: 3px solid #c3c2b7;
 }
 
-/* Check Book: Power BI-style year/month slicer strips. */
+/* Breakdown: the matrix's Total column, weighted so the eye finds the row's
+   bottom line without a second border competing with the section dividers. */
+.tabulator .tabulator-col.matrix-total,
+.tabulator .tabulator-cell.matrix-total {
+  font-weight: 600;
+  background: color-mix(in oklch, var(--muted), transparent 35%);
+}
+
+/* Check Book and Breakdown: Power BI-style year/month slicer strips. */
 .slicer-btn {
   padding: 6px 12px;
   border: 1px solid #c3c2b7;

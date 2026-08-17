@@ -32,6 +32,18 @@ export const DATE_HIERARCHY: readonly Dimension[] = ["year", "month", "day"];
 export const CATEGORY_HIERARCHY: readonly Dimension[] = ["category", "subCategory", "label"];
 export const MATRIX_HIERARCHY: readonly Dimension[] = ["date", "label"];
 
+/** How a dimension is named in a column header or a chart title. */
+export const DIMENSION_TITLES: Record<Dimension, string> = {
+  year: "Year",
+  month: "Month",
+  day: "Day",
+  date: "CalendarDate",
+  accountType: "AccountType",
+  category: "Category",
+  subCategory: "SubCategory",
+  label: "Label",
+};
+
 /** The synthetic bar closing a waterfall; never a real group key. */
 export const WATERFALL_TOTAL_KEY = "__total__";
 

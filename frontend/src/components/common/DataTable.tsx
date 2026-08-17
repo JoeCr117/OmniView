@@ -20,16 +20,28 @@ export function DataTable({
   data,
   columns,
   options,
+  onRowClick,
   placeholder = "No rows to show.",
 }: {
   data: object[];
   columns: Options["columns"];
   options?: Omit<Options, "data" | "columns">;
+  /**
+   * Row clicks, if the grid wants them. Tabulator 6 moved `rowClick` out of the
+   * options object into its event system, so it cannot be passed through
+   * `options`; it is registered once at build and dispatched through a ref, so
+   * a handler closing over React state never goes stale.
+   */
+  onRowClick?: (rowData: object) => void;
   /** Shown by Tabulator when `data` is empty - every grid should say *something*. */
   placeholder?: string;
 }) {
   const holderRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<TabulatorFull | null>(null);
+  const rowClickRef = useRef(onRowClick);
+  useEffect(() => {
+    rowClickRef.current = onRowClick;
+  });
   // Tabulator initializes asynchronously - calling setData before its
   // "tableBuilt" event fires corrupts internal layout state (Tabulator logs
   // "Table Not Initialized" and throws null-reference errors on interaction
@@ -62,6 +74,7 @@ export function DataTable({
           pendingDataRef.current = null;
         }
       });
+      table.on("rowClick", (_event, row) => rowClickRef.current?.(row.getData()));
       tableRef.current = table;
     });
 

@@ -28,7 +28,7 @@ const mock = vi.hoisted(() => {
   class FakeTable {
     setData = vi.fn();
     destroy = vi.fn();
-    private handlers: Record<string, () => void> = {};
+    private handlers: Record<string, (...args: unknown[]) => void> = {};
 
     constructor(
       readonly element: HTMLElement,
@@ -37,13 +37,18 @@ const mock = vi.hoisted(() => {
       instances.push(this);
     }
 
-    on(event: string, callback: () => void) {
+    on(event: string, callback: (...args: unknown[]) => void) {
       this.handlers[event] = callback;
     }
 
     /** Tabulator fires this once built; until then setData corrupts it. */
     fireBuilt() {
       this.handlers.tableBuilt?.();
+    }
+
+    /** Tabulator's rowClick, which hands over the event and a row component. */
+    fireRowClick(rowData: object) {
+      this.handlers.rowClick?.(new MouseEvent("click"), { getData: () => rowData });
     }
   }
 
@@ -150,6 +155,35 @@ describe("DataTable", () => {
     });
 
     expect(() => view.unmount()).not.toThrow();
+  });
+
+  it("reports row clicks with the row's data", async () => {
+    const onRowClick = vi.fn();
+    render(<DataTable data={[{ name: "a" }]} columns={COLUMNS} onRowClick={onRowClick} />);
+    await waitFor(() => expect(mock.instances).toHaveLength(1));
+    mock.instances[0].fireBuilt();
+
+    mock.instances[0].fireRowClick({ name: "a" });
+
+    expect(onRowClick).toHaveBeenCalledWith({ name: "a" });
+  });
+
+  it("calls the newest row-click handler, not the one captured when the table was built", async () => {
+    // The table is built once, so a handler closing over component state would
+    // be frozen at its first value - the bug the ref indirection prevents.
+    const stale = vi.fn();
+    const fresh = vi.fn();
+    const view = render(
+      <DataTable data={[{ name: "a" }]} columns={COLUMNS} onRowClick={stale} />,
+    );
+    await waitFor(() => expect(mock.instances).toHaveLength(1));
+    mock.instances[0].fireBuilt();
+
+    view.rerender(<DataTable data={[{ name: "a" }]} columns={COLUMNS} onRowClick={fresh} />);
+    mock.instances[0].fireRowClick({ name: "a" });
+
+    expect(stale).not.toHaveBeenCalled();
+    expect(fresh).toHaveBeenCalledTimes(1);
   });
 
   it("does not rebuild when columns change identity, so sort and scroll survive", async () => {

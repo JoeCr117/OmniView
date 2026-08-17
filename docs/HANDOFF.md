@@ -770,8 +770,8 @@ committed — this repo is public).
 | M | Scope | Status |
 |---|---|---|
 | M1 | Backend: `GET /transactions/breakdown` + sign tripwire | ✅ (`acb605d`) |
-| M2 | Frontend data layer + pure aggregation module | ✅ |
-| M3 | Matrix + slicers (first visible milestone) | ⬜ |
+| M2 | Frontend data layer + pure aggregation module | ✅ (`8a8e26a`) |
+| M3 | Matrix + slicers (first visible milestone) | ✅ |
 | M4 | Waterfall chart primitive | ⬜ |
 | M5 | Pie chart primitive | ⬜ |
 | M6 | Cross-filtering | ⬜ |
@@ -826,6 +826,39 @@ Frontend coverage rose to **statements 59.44 / branches 54.42 / functions 54.39 
 thresholds of 57/51/52/57. **The thresholds were deliberately not ratcheted yet**: M3–M6 are the
 UI-heavy milestones, and raising the floor before them risks having to lower it, which the ratchet
 forbids. Raise them once in M7, to whatever the finished feature measures.
+
+### M3 — the matrix, verified against the source report
+
+The tab is live at `/apps/expense-tracker/breakdown`: year/month slicers, the matrix, and the four
+Power BI drill controls (drill up · drill-down mode · expand all one level · go to the next level).
+
+**Verified against the reference images, not just against itself.** With the 2025 slicer selected the
+matrix reproduces `Breakdown Dashboard 1.png` cell for cell — 2025-12-26 as ($79.60) / ($1,559.99) /
+$1,500.00 / $7.98 / ($131.61), 2025-12-23 as ($112.32) / ($4,144.67), 2025-12-07 netting $0.00 — and
+its footer totals **($471.13)**, the same number the legacy waterfall's 2025 bar carries. "Go to the
+next level" reproduces `Breakdown Dashboard 14.png`: 76 at ($30.20)/($67.56)/($97.76), AEGIS
+($318.24), Alaska ($878.00), BEL AIR ($52.05)/($61.14)/($113.19). Unfiltered, the footer reads
+$1,751.61 / ($6,221.92) / $29,998.94 / ($7,183.42) / **$18,345.21**, matching the database exactly.
+
+Three things worth not rediscovering:
+
+- **The grid remounts on a `key`, and that is deliberate.** `DataTable` builds Tabulator once and only
+  streams `data` in — rebuilding on prop identity would throw away sort and scroll state. But
+  Breakdown's *shape* changes (account columns drop when a filter excludes them, the hierarchy level
+  changes, expand-all toggles), so `BreakdownMatrix` keys the grid on its column signature. The key
+  excludes the rows, so a slicer click never costs the reader their scroll position.
+- **`dataTreeChildColumnCalcs` must stay false.** Children are already counted in their parent's
+  total; letting them into the footer bills every transaction twice. The footer tying to the database
+  is what proves it.
+- **`DataTable` gained an `onRowClick` prop.** Tabulator 6 moved `rowClick` out of the options object
+  into its event system, so it cannot be passed through `options` at all. It is registered once at
+  build and dispatched through a ref, so a handler closing over React state is never stale — there is
+  a test for exactly that.
+
+Check Book now shares the extracted `YearMonthSlicer` rather than holding a second copy of the markup;
+`e2e/check-book.spec.ts`, `navigation.spec.ts` and `accessibility.spec.ts` were run green against the
+change. **The Breakdown page is not yet in `accessibility.spec.ts`** — that spec asserts an exact set
+of violated rule ids per page, and adding it belongs with the rest of the test work in M7.
 
 ---
 

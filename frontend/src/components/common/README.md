@@ -26,7 +26,13 @@ the progress affordances.
 - Skeletons are for *first* load; a refetch over existing data uses `RefreshBar`
   and keeps the content (that's what `useResource` drives).
 - `DataTable` builds Tabulator once and flows data in via `setData` — it never
-  rebuilds on prop identity changes (that would drop sort/scroll state).
+  rebuilds on prop identity changes (that would drop sort/scroll state). A grid
+  whose *shape* genuinely changes (columns appearing, a hierarchy level changing)
+  remounts itself with a React `key`; see `BreakdownMatrix`.
+- Row clicks go through `DataTable`'s `onRowClick` prop, not `options`: Tabulator
+  6 moved `rowClick` out of the options object into its event system. It is
+  registered once at build and dispatched through a ref, so a handler closing
+  over React state is never stale.
 
 ## See also
 - [components/](../README.md) · [lib/useResource.ts](../../lib/README.md) · [charts/](../charts/README.md)

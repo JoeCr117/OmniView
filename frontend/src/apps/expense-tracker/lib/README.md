@@ -20,6 +20,7 @@ Breakdown, which is why they are modules rather than page locals.
 | `money.ts` | Accounting currency — ($781.64) — plus the Tabulator currency/total column presets. |
 | `slicer.ts` | Power BI year/month slicer semantics: empty means all, click-to-clear, shift to extend. |
 | `breakdown.ts` | Grouping, pivoting, waterfall running totals and pie shares — all pure. |
+| `drill.ts` | Where a visual sits in its hierarchy: drill into (filters) vs. next level (does not). |
 | `*.test.ts` | Cover each (upload is tested through the XHR path). |
 
 ## Conventions & gotchas
