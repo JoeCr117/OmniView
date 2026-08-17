@@ -14,7 +14,9 @@ these. Nothing here is cross-app: a component two *apps* need is promoted to
 | Item | What it does |
 |------|--------------|
 | `YearMonthSlicer.tsx` | The year/month slicer strips (Check Book and Breakdown). Selection lives with the caller. |
-| `BreakdownMatrix.tsx` | The Breakdown matrix: nets by date/label × account, plus the Power BI drill toolbar. |
+| `DrillToolbar.tsx` | The drill controls every Breakdown visual carries, plus the shared `ToolbarButton`. |
+| `BreakdownMatrix.tsx` | The Breakdown matrix: nets by date/label × account, plus its expand-all control. |
+| `BreakdownWaterfall.tsx` | Net transactions as a waterfall, over the date or the category hierarchy. |
 
 ## Conventions & gotchas
 - **`BreakdownMatrix` keys its `DataTable` on the column signature.** `DataTable`
@@ -28,6 +30,10 @@ these. Nothing here is cross-app: a component two *apps* need is promoted to
 - `dataTreeChildColumnCalcs` stays **false**: children are already counted in
   their parent's total, and letting them into the footer bills every transaction
   twice.
+- **Drill state belongs to each visual**, as in Power BI — the matrix and the
+  waterfall descend independently, and neither resets when the slicers change.
+  The waterfall keeps one drill state *per axis*, so switching to Category and
+  back does not dump the reader out of the year they were reading.
 
 ## See also
 - [expense-tracker/](../README.md) · [lib/](../lib/README.md) · [components/common/](../../../components/common/README.md)

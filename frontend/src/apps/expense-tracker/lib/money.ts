@@ -14,9 +14,25 @@ const accountingUsd = new Intl.NumberFormat("en-US", {
   currencySign: "accounting",
 });
 
+const compactUsd = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  currencySign: "accounting",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
 /** ($781.64) for negatives, $781.64 for positives. */
 export function formatUsd(value: number): string {
   return accountingUsd.format(value);
+}
+
+/**
+ * ($19.4K) - for axis ticks, where the exact cent is noise and the full string
+ * is wide enough to collide with the axis title.
+ */
+export function formatUsdCompact(value: number): string {
+  return compactUsd.format(value);
 }
 
 /** Tabulator cell formatter; blank for anything that isn't a number. */

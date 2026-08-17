@@ -771,8 +771,8 @@ committed — this repo is public).
 |---|---|---|
 | M1 | Backend: `GET /transactions/breakdown` + sign tripwire | ✅ (`acb605d`) |
 | M2 | Frontend data layer + pure aggregation module | ✅ (`8a8e26a`) |
-| M3 | Matrix + slicers (first visible milestone) | ✅ |
-| M4 | Waterfall chart primitive | ⬜ |
+| M3 | Matrix + slicers (first visible milestone) | ✅ (`3516868`) |
+| M4 | Waterfall chart primitive | ✅ |
 | M5 | Pie chart primitive | ⬜ |
 | M6 | Cross-filtering | ⬜ |
 | M7 | Tests, accessibility, docs | ⬜ |
@@ -859,6 +859,36 @@ Check Book now shares the extracted `YearMonthSlicer` rather than holding a seco
 `e2e/check-book.spec.ts`, `navigation.spec.ts` and `accessibility.spec.ts` were run green against the
 change. **The Breakdown page is not yet in `accessibility.spec.ts`** — that spec asserts an exact set
 of violated rule ids per page, and adding it belongs with the rest of the test work in M7.
+
+### M4 — the waterfall, and the second chart primitive
+
+`components/charts/WaterfallChart.tsx` joins `TimeSeriesChart`, carrying the same invariants (required
+`ariaLabel`, titled axes with unit, cursor tooltip, `Lazy*` wrapper). `docs/ARCHITECTURE.md`'s "charts
+go through `TimeSeriesChart`" rule is now "charts go through the primitives in `components/charts/`",
+with the rule for adding a third stated: it carries the readability invariants by construction, or it
+does not belong there.
+
+Verified live: the Year waterfall reads 2024 **($598.83)** and 2025 **($471.13)** — the same two
+numbers as the legacy waterfall in `Breakdown Dashboard 1.png` — and the Category waterfall reproduces
+`Breakdown Dashboard 5.png`'s shape, with a tooltip reading Income **$195,057.82**, exactly the
+database figure. The `[Date] [Category]` toggle keeps **one drill state per axis**, so switching over
+and back does not dump the reader out of the year they were reading.
+
+Three implementation notes:
+
+- **Bars are Recharts *range* bars** (`dataKey` yielding `[min, max]`), not a transparent spacer
+  stacked under a visible bar. Stacking splits positive and negative values into separate stacks, so
+  any bar sitting below zero lands in the wrong place — which is most of this chart.
+- **Connectors are `ReferenceLine segment`s** between each bar's end and the next bar's start. The
+  closing Total bar is deliberately not connected: it restates the whole rather than continuing it.
+- **Two readability limits, both measured against the real chart, not guessed**: value labels are
+  dropped past 8 bars and ticks angle past 12. At 13 categories in the right-hand pane the labels
+  overlapped into an unreadable smear; the tooltip still carries the exact number, so nothing a reader
+  could actually have read is lost. Axis ticks also needed a *compact* formatter (`formatUsdCompact`,
+  "$19.5K") — full-cent strings are wide enough to collide with the axis title.
+
+The page is now a two-column grid weighted 7:5 toward the matrix, stacking below `xl`: six currency
+columns and a chart do not both fit at half width.
 
 ---
 

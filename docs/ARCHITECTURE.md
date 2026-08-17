@@ -201,13 +201,18 @@ the registry is missing something — extend `appspec.py` instead.
 
 ---
 
-**Charts go through `TimeSeriesChart`.** Not because a wrapper is tidy, but because the things that
-make a chart *readable* — both axes titled, the value axis carrying its unit, a crosshair, a tooltip
-naming the underlying row — are exactly the things that get skipped when each page rolls its own.
-`ariaLabel` is required for the same reason: the chart this replaced hardcoded one, and so described
-every chart as a balance chart. Long series are thinned by LTTB (`charts/downsample.ts`), which
-*selects* real rows rather than averaging them, so the crosshair always lands on a real day. Import
-it as `LazyTimeSeriesChart` — Recharts is ~100KB and most pages plot nothing.
+**Charts go through the primitives in `components/charts/`.** Not because a wrapper is tidy, but
+because the things that make a chart *readable* — both axes titled, the value axis carrying its unit,
+a cursor tooltip naming the underlying row — are exactly the things that get skipped when each page
+rolls its own. `ariaLabel` is required on every one of them for the same reason: the chart this
+replaced hardcoded one, and so described every chart as a balance chart. Each is imported through its
+`Lazy*` wrapper — Recharts is ~100KB and most pages plot nothing.
+
+A page picks by what it is *saying*: `TimeSeriesChart` for a value over time (long series are thinned
+by LTTB in `charts/downsample.ts`, which *selects* real rows rather than averaging them, so the
+crosshair always lands on a real day); `WaterfallChart` for how a running total got where it did.
+Adding another means the same bar: it carries the readability invariants by construction, or it does
+not belong here.
 
 **Data fetching goes through `useResource`.** A page that reads an endpoint uses
 `useResource(key, fetcher)` (a stale-while-revalidate cache over `apiFetch`), not

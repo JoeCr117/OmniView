@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, ChevronsDown, ListTree } from "lucide-react";
+import { ChevronsDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ColumnDefinition } from "tabulator-tables";
 
@@ -13,19 +13,10 @@ import {
   pivot,
   type Dimension,
 } from "@/apps/expense-tracker/lib/breakdown";
-import {
-  INITIAL_DRILL,
-  canDrillDown,
-  canDrillUp,
-  drillFilter,
-  drillInto,
-  drillLevel,
-  drillUp,
-  skipToNextLevel,
-} from "@/apps/expense-tracker/lib/drill";
+import { INITIAL_DRILL, drillFilter, drillInto, drillLevel } from "@/apps/expense-tracker/lib/drill";
 import { txn } from "@/apps/expense-tracker/lib/money";
+import { DrillToolbar, ToolbarButton } from "@/apps/expense-tracker/components/DrillToolbar";
 import { DataTable } from "@/components/common/DataTable";
-import { Button } from "@/components/ui/button";
 
 /**
  * The Breakdown matrix: dates down the side, accounts across the top, nets in
@@ -50,8 +41,6 @@ export function BreakdownMatrix({ rows }: { rows: readonly BreakdownRow[] }) {
   const nodes = useMemo(() => pivot(scoped, dims, "accountType"), [scoped, dims]);
   const columns = useMemo(() => matrixColumns(dims, accountTypes), [dims, accountTypes]);
 
-  const canDown = canDrillDown(drill, MATRIX_HIERARCHY);
-
   function handleRowClick(rowData: object) {
     if (!drillMode) return;
     const { key } = rowData as { key?: string };
@@ -60,37 +49,22 @@ export function BreakdownMatrix({ rows }: { rows: readonly BreakdownRow[] }) {
 
   return (
     <section aria-label="Transactions matrix">
-      <div className="mb-2 flex items-center gap-1">
-        <ToolbarButton
-          label="Drill up"
-          icon={<ChevronUp />}
-          disabled={!canDrillUp(drill)}
-          onClick={() => setDrill(drillUp)}
-        />
-        <ToolbarButton
-          label="Drill down: click a row to descend into it"
-          icon={<ChevronDown />}
-          pressed={drillMode}
-          disabled={!canDown}
-          onClick={() => setDrillMode((on) => !on)}
-        />
+      <DrillToolbar
+        drill={drill}
+        hierarchy={MATRIX_HIERARCHY}
+        onDrill={setDrill}
+        drillMode={drillMode}
+        onDrillModeChange={setDrillMode}
+        status={drillMode ? "Click a row to drill into it." : `Showing ${nodes.length} rows.`}
+      >
         <ToolbarButton
           label="Expand all one level down"
           icon={<ChevronsDown />}
           pressed={expandAll}
           disabled={dims.length < 2}
-          onClick={() => setExpandAll((on) => !on)}
+          onClick={() => setExpandAll(!expandAll)}
         />
-        <ToolbarButton
-          label="Go to the next level in the hierarchy"
-          icon={<ListTree />}
-          disabled={!canDown}
-          onClick={() => setDrill((current) => skipToNextLevel(current, MATRIX_HIERARCHY))}
-        />
-        <span className="ml-2 text-xs text-muted-foreground">
-          {drillMode ? "Click a row to drill into it." : `Showing ${nodes.length} rows.`}
-        </span>
-      </div>
+      </DrillToolbar>
 
       <DataTable
         key={`${dims.join("-")}|${accountTypes.join("-")}|${expandAll}`}
@@ -114,52 +88,27 @@ export function BreakdownMatrix({ rows }: { rows: readonly BreakdownRow[] }) {
   );
 }
 
-function ToolbarButton({
-  label,
-  icon,
-  onClick,
-  disabled,
-  pressed,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  pressed?: boolean;
-}) {
-  return (
-    <Button
-      variant={pressed ? "secondary" : "ghost"}
-      size="icon-sm"
-      aria-label={label}
-      aria-pressed={pressed}
-      title={label}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {icon}
-    </Button>
-  );
-}
-
 function matrixColumns(
   dims: readonly Dimension[],
   accountTypes: readonly string[],
 ): ColumnDefinition[] {
   const [rowDim] = dims;
+  // Narrower than Check Book's columns: this grid shares the page with the
+  // charts, and six currency columns at the default width overflow it.
+  const currency = { ...txn, minWidth: 100 };
   return [
     {
       title: rowDim ? DIMENSION_TITLES[rowDim] : "",
       field: "label",
       frozen: true,
-      width: 190,
+      width: 150,
       bottomCalc: () => "Total",
     },
     ...accountTypes.map((account) => ({
       title: account,
       field: `values.${account}`,
-      ...txn,
+      ...currency,
     })),
-    { title: "Total", field: "total", ...txn, cssClass: "matrix-total" },
+    { title: "Total", field: "total", ...currency, cssClass: "matrix-total" },
   ];
 }
