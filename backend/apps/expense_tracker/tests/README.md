@@ -18,8 +18,12 @@ real production tree.
 | `data/` | A miniature `banks/Golden1/<account>/*.csv` fixture tree (documented here, not per-leaf). |
 
 ## Conventions & gotchas
-- `data/` holds fixture CSVs only; it is intentionally excluded from per-folder
-  README coverage (it's data, not code).
+- `data/` holds fixture CSVs and `datavault_schema.sql` only; it is intentionally
+  excluded from per-folder README coverage (it's data, not code).
+- `datavault_schema.sql` seeds expenses **negative** on deposit accounts as well
+  as on the card, matching the real Golden1 exports. `docs/examples`' CSVs carry
+  the opposite credit-card sign; seeding from those would invert every spend
+  visual. `transactions/tests/test_breakdown.py` is the tripwire.
 - Keep all ExpenseTracker fixtures here — this is where they were consolidated in
   the QOL1 restructure.
 

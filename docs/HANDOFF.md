@@ -48,6 +48,7 @@ All five phases are complete and deployed.
 | 8 | **Omni-ERD milestone set 2** — inspect and manipulate the diagram | ✅ complete (2026-07-22), deployed — see [Phase 8 detail](#phase-8-progress--omni-erd-inspect-and-manipulate) |
 | 9 | **Omni-ERD milestone set 3** — key tags, toolbar pill, multi-select | ✅ complete (2026-07-23), deployed — see [Phase 9 detail](#phase-9-progress--omni-erd-key-tags-toolbar-pill-multi-select) |
 | 10 | **Objective quality measurement** — measured baselines, ratcheted gates, pre-commit + CI | ✅ complete (2026-08-15), not yet deployed — see [Phase 10 detail](#phase-10--objective-quality-measurement) |
+| 11 | **ExpenseTracker Breakdown** — the legacy Power BI matrix/waterfall/pie page, rebuilt in-app | 🚧 in progress (M1 of 7 done) — see [Phase 11 detail](#phase-11--expensetracker-breakdown) |
 
 ---
 
@@ -754,6 +755,54 @@ authenticated harness served with a session cookie), **hyperfine** (`choco insta
 **scalene** (its 2.3 runner exits non-zero on this pipeline), **memray** (Linux/macOS only), **dive**
 (needs the app image built). `gitleaks` passes on the working tree but has not been run over full
 history.
+
+---
+
+## Phase 11 — ExpenseTracker Breakdown
+
+Rebuilding the legacy Power BI **Breakdown** page in-app, the way Check Book and Daily Trends were:
+a matrix (`CalendarDate → Label`, columns per account type), a waterfall (Year→Month→Day *or*
+Category→SubCategory→Label), a pie (expenses only), year/month slicers, and Power BI cross-filtering —
+click a mark and the other visuals filter, charts cross-highlight, Restart clears. Reference images
+live in `Breakdown Dashboard Refrence Images/` (untracked; decide separately whether they get
+committed — this repo is public).
+
+| M | Scope | Status |
+|---|---|---|
+| M1 | Backend: `GET /transactions/breakdown` + sign tripwire | ✅ |
+| M2 | Frontend data layer + pure aggregation module | ⬜ |
+| M3 | Matrix + slicers (first visible milestone) | ⬜ |
+| M4 | Waterfall chart primitive | ⬜ |
+| M5 | Pie chart primitive | ⬜ |
+| M6 | Cross-filtering | ⬜ |
+| M7 | Tests, accessibility, docs | ⬜ |
+
+### What M1 established, by measurement
+
+**The warehouse's signs are already consistent, so no pipeline change is needed.** Queried against the
+live compose database: `Food/FreeChecking` = −9,581.97 over 301 rows with **zero** positive rows,
+`Rent/FreeChecking` = −38,655.17 over 19 rows with zero, `Income/FreeChecking` = +190,445.61 all
+positive. Expenses are negative and income positive on all four account types, so
+`SUM(TransactionAmount)` is a valid signed measure and the whole feature stays inside the web layer.
+
+**The sign warning in `transactions/services.py:budget_analysis` describes the fixtures, not
+production.** `silver_Golden1_CreditCard` negates `(Debit+Credit)`; the real Golden1 card exports
+carry positive debits, so the negation lands expenses negative — matching the deposit accounts. The
+synthetic `docs/examples/Banks/Golden1/CreditCard/*.csv` carry *negative* debits, so the same negation
+would flip card expenses positive. Seeding tests from those would invert every spend visual.
+`transactions/tests/test_breakdown.py::test_expenses_are_negative_on_every_account_type` is the
+tripwire, and `datavault_schema.sql` now seeds a deposit-account expense specifically to arm it.
+
+**The whole fact fits in one payload.** 1,586 rows, 2024-01-01 → 2026-07-29, 170 labels, 32
+subcategories — so `/breakdown` is unpaginated and the page pivots, drills and cross-filters
+client-side, the same trade Check Book makes with `DAILY_METRICS_KEY`. Server-side aggregation per
+interaction would buy nothing and cost a round-trip per click.
+
+`Category`/`SubCategory` exist only in `gold_Golden1_BudgetMap` and gold has no foreign keys, so
+`breakdown_rows` joins the ~30-row dimension in Python — 2 queries regardless of row count, budgeted
+in `test_query_budgets.py`. The 30 rows with no category surface as an **`Uncategorized`** bucket
+rather than being dropped, so the matrix total ties to the account totals (verified: 1,586 rows
+summing to 18,345.21, equal to the four per-account nets).
 
 ---
 

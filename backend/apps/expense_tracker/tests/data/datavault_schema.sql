@@ -42,10 +42,20 @@ CREATE TABLE IF NOT EXISTS "gold_Golden1_AllTransactions" (
     CategorySK INTEGER
 );
 
+-- Sign convention, asserted by transactions/tests/test_breakdown.py: expenses
+-- are negative and income positive on EVERY account type, which is what the
+-- real Golden1 exports produce. Seeding a deposit-account expense as positive
+-- would model the synthetic docs/examples CSVs instead, and every spend visual
+-- built on this data would read inverted.
+-- Spans two years, two months and three account types so the Breakdown page's
+-- drilldowns have something to descend into.
 INSERT INTO "gold_Golden1_AllTransactions" VALUES
     (20240101, '2024-01-01', 'CreditCard', -12.50, -112.50, 'Gas', 11111),
     (20240103, '2024-01-03', 'CreditCard', -4.50, -117.00, NULL, NULL),
-    (20240103, '2024-01-03', 'Savings', 25.0, 275.0, 'Employer', 33333);
+    (20240103, '2024-01-03', 'Savings', 25.0, 275.0, 'Employer', 33333),
+    (20240115, '2024-01-15', 'FreeChecking', -85.00, 915.00, 'Premium', 22222),
+    (20250210, '2025-02-10', 'FreeChecking', 1200.00, 2115.00, 'Employer', 33333),
+    (20250210, '2025-02-10', 'CreditCard', -30.00, -147.00, 'Gas', 11111);
 
 CREATE TABLE IF NOT EXISTS "gold_Golden1_UncategorizedTransactions" (
     DateSK INTEGER,
