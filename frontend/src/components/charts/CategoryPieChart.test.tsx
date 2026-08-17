@@ -132,16 +132,21 @@ describe("CategoryPieChart", () => {
 
     await userEvent.click(sectors(container)[1]);
 
-    expect(onSelect).toHaveBeenCalledWith("Food");
+    expect(onSelect).toHaveBeenCalledWith("Food", false);
   });
 
-  it("clears the selection when the active slice is clicked again", async () => {
+  it("reports that the reader was extending when a modifier is held", async () => {
     const onSelect = vi.fn();
-    const { container } = renderChart({ onSelect, selectedKey: "Food" });
+    const { container } = renderChart({ onSelect });
 
-    await userEvent.click(sectors(container)[1]);
+    // One session: userEvent only carries a held key across calls made through
+    // the same setup() instance.
+    const user = userEvent.setup();
+    await user.keyboard("{Shift>}");
+    await user.click(sectors(container)[1]);
+    await user.keyboard("{/Shift}");
 
-    expect(onSelect).toHaveBeenCalledWith(null);
+    expect(onSelect).toHaveBeenCalledWith("Food", true);
   });
 
   it("ignores clicks on Other, which is an aggregate and cannot filter to anything", async () => {
@@ -153,8 +158,8 @@ describe("CategoryPieChart", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("dims the slices outside a selection made elsewhere", () => {
-    const { container } = renderChart({ selectedKey: "Food" });
+  it("dims the slices outside the highlighted set", () => {
+    const { container } = renderChart({ highlightKeys: ["Food"] });
     const opacities = sectors(container).map((sector) => sector.getAttribute("fill-opacity"));
     expect(opacities).toEqual(["0.3", "1", "0.3"]);
   });

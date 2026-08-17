@@ -30,9 +30,10 @@ export function DataTable({
    * Row clicks, if the grid wants them. Tabulator 6 moved `rowClick` out of the
    * options object into its event system, so it cannot be passed through
    * `options`; it is registered once at build and dispatched through a ref, so
-   * a handler closing over React state never goes stale.
+   * a handler closing over React state never goes stale. The originating event
+   * comes with it, because modifier-clicks mean something to some callers.
    */
-  onRowClick?: (rowData: object) => void;
+  onRowClick?: (rowData: object, event: UIEvent) => void;
   /** Shown by Tabulator when `data` is empty - every grid should say *something*. */
   placeholder?: string;
 }) {
@@ -74,7 +75,7 @@ export function DataTable({
           pendingDataRef.current = null;
         }
       });
-      table.on("rowClick", (_event, row) => rowClickRef.current?.(row.getData()));
+      table.on("rowClick", (event, row) => rowClickRef.current?.(row.getData(), event));
       tableRef.current = table;
     });
 

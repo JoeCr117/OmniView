@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Cell, Legend, Pie, PieChart } from "recharts";
 
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
@@ -81,7 +81,7 @@ export function CategoryPieChart({
   height = 260,
   emptyMessage = "Nothing to show for this selection.",
   className,
-  selectedKey = null,
+  highlightKeys,
   onSelect,
 }: {
   /** Largest first; the caller decides the order, this decides what fits. */
@@ -93,12 +93,17 @@ export function CategoryPieChart({
   height?: number;
   emptyMessage?: string;
   className?: string;
-  /** When set, every other slice dims - the chart is showing a selection made elsewhere. */
-  selectedKey?: string | null;
-  /** Clicking a slice reports its key, or null when the active slice is clicked again. */
-  onSelect?: (key: string | null) => void;
+  /** Slices to keep bright; every other slice dims. Empty or absent dims nothing. */
+  highlightKeys?: readonly string[];
+  /** Reports which slice was clicked, and whether the reader was extending a selection. */
+  onSelect?: (key: string, extend: boolean) => void;
 }) {
   const data = useMemo(() => foldToPalette(slices), [slices]);
+
+  // Recharts' own click handlers do not carry the modifier keys, so read them
+  // off the native event on the way down instead of from the synthetic one.
+  const extendRef = useRef(false);
+  const dimmed = highlightKeys !== undefined && highlightKeys.length > 0;
 
   const config = useMemo<ChartConfig>(
     () =>
@@ -124,6 +129,9 @@ export function CategoryPieChart({
       style={{ height }}
       role="img"
       aria-label={ariaLabel}
+      onClickCapture={(event) => {
+        extendRef.current = event.ctrlKey || event.shiftKey || event.metaKey;
+      }}
     >
       <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
         <ChartTooltip
@@ -180,14 +188,14 @@ export function CategoryPieChart({
             const slice = data[index];
             // Other is an aggregate, not a category: it cannot filter to anything.
             if (!slice || slice.key === FOLDED_KEY || !onSelect) return;
-            onSelect(slice.key === selectedKey ? null : slice.key);
+            onSelect(slice.key, extendRef.current);
           }}
         >
           {data.map((slice, index) => (
             <Cell
               key={slice.key}
               fill={colorFor(index, slice.key)}
-              fillOpacity={selectedKey === null || selectedKey === slice.key ? 1 : DIMMED}
+              fillOpacity={!dimmed || highlightKeys.includes(slice.key) ? 1 : DIMMED}
               cursor={onSelect && slice.key !== FOLDED_KEY ? "pointer" : undefined}
             />
           ))}

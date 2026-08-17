@@ -96,28 +96,46 @@ describe("WaterfallChart", () => {
 
     await userEvent.click(bars(container)[1]);
 
-    expect(onSelect).toHaveBeenCalledWith("2025");
+    expect(onSelect).toHaveBeenCalledWith("2025", false);
   });
 
-  it("clears the selection when the already-selected bar is clicked again", async () => {
+  it("reports that the reader was extending when a modifier is held", async () => {
+    // Recharts' click handlers do not carry modifier keys, so the chart reads
+    // them off the native event on the way down.
     const onSelect = vi.fn();
-    const { container } = renderChart({ onSelect, selectedKey: "2025" });
+    const { container } = renderChart({ onSelect });
 
-    await userEvent.click(bars(container)[1]);
+    // One session: userEvent only carries a held key across calls made through
+    // the same setup() instance.
+    const user = userEvent.setup();
+    await user.keyboard("{Control>}");
+    await user.click(bars(container)[1]);
+    await user.keyboard("{/Control}");
 
-    expect(onSelect).toHaveBeenCalledWith(null);
+    expect(onSelect).toHaveBeenCalledWith("2025", true);
   });
 
-  it("dims the bars outside a selection made elsewhere", () => {
-    const { container } = renderChart({ selectedKey: "2025" });
+  it("dims the bars outside the highlighted set", () => {
+    const { container } = renderChart({ highlightKeys: ["2025"] });
     const opacities = bars(container).map((bar) => bar.getAttribute("fill-opacity"));
     expect(opacities).toEqual(["0.3", "1", "0.3"]);
   });
 
-  it("leaves every bar at full strength when nothing is selected", () => {
-    const { container } = renderChart();
+  it("keeps several bars bright for a multi-selection", () => {
+    const { container } = renderChart({ highlightKeys: ["2024", "2025"] });
     const opacities = bars(container).map((bar) => bar.getAttribute("fill-opacity"));
-    expect(opacities).toEqual(["1", "1", "1"]);
+    expect(opacities).toEqual(["1", "1", "0.3"]);
+  });
+
+  it("leaves every bar at full strength when nothing is highlighted", () => {
+    const { container } = renderChart();
+    expect(bars(container).map((bar) => bar.getAttribute("fill-opacity"))).toEqual(["1", "1", "1"]);
+    const empty = renderChart({ highlightKeys: [] });
+    expect(bars(empty.container).map((bar) => bar.getAttribute("fill-opacity"))).toEqual([
+      "1",
+      "1",
+      "1",
+    ]);
   });
 
   it("drops the value labels once there are too many bars to read them", () => {

@@ -30,7 +30,14 @@ import { DataTable } from "@/components/common/DataTable";
  * has to remount it. The key deliberately excludes the rows themselves - a
  * slicer click must not cost the reader their scroll position.
  */
-export function BreakdownMatrix({ rows }: { rows: readonly BreakdownRow[] }) {
+export function BreakdownMatrix({
+  rows,
+  onSelect,
+}: {
+  rows: readonly BreakdownRow[];
+  /** A row click that is not a drill reports the row as a cross-filter criterion. */
+  onSelect?: (criterion: { dim: Dimension; key: string }, extend: boolean) => void;
+}) {
   const [drill, setDrill] = useState(INITIAL_DRILL);
   const [drillMode, setDrillMode] = useState(false);
   const [expandAll, setExpandAll] = useState(false);
@@ -41,10 +48,15 @@ export function BreakdownMatrix({ rows }: { rows: readonly BreakdownRow[] }) {
   const nodes = useMemo(() => pivot(scoped, dims, "accountType"), [scoped, dims]);
   const columns = useMemo(() => matrixColumns(dims, accountTypes), [dims, accountTypes]);
 
-  function handleRowClick(rowData: object) {
-    if (!drillMode) return;
-    const { key } = rowData as { key?: string };
-    if (key !== undefined) setDrill((current) => drillInto(current, MATRIX_HIERARCHY, key));
+  function handleRowClick(rowData: object, event: UIEvent) {
+    const { key, dim } = rowData as { key?: string; dim?: Dimension };
+    if (key === undefined || dim === undefined) return;
+    if (drillMode) {
+      setDrill((current) => drillInto(current, MATRIX_HIERARCHY, key));
+      return;
+    }
+    const mouse = event as MouseEvent;
+    onSelect?.({ dim, key }, mouse.ctrlKey || mouse.shiftKey || mouse.metaKey);
   }
 
   return (

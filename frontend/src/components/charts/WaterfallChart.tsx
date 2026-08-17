@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import {
@@ -83,7 +83,7 @@ export function WaterfallChart({
   height = 260,
   emptyMessage = "No data for this range.",
   className,
-  selectedKey = null,
+  highlightKeys,
   onSelect,
   showValueLabels,
 }: {
@@ -95,10 +95,10 @@ export function WaterfallChart({
   height?: number;
   emptyMessage?: string;
   className?: string;
-  /** When set, every other bar dims - the chart is showing a selection made elsewhere. */
-  selectedKey?: string | null;
-  /** Clicking a bar reports its key, or null when the active bar is clicked again. */
-  onSelect?: (key: string | null) => void;
+  /** Bars to keep bright; every other bar dims. Empty or absent dims nothing. */
+  highlightKeys?: readonly string[];
+  /** Reports which bar was clicked, and whether the reader was extending a selection. */
+  onSelect?: (key: string, extend: boolean) => void;
   /** Per-bar value labels. Defaults to on only while they still fit. */
   showValueLabels?: boolean;
 }) {
@@ -112,6 +112,11 @@ export function WaterfallChart({
   );
 
   const config = useMemo<ChartConfig>(() => ({ span: { label: y.label } }), [y.label]);
+
+  // Recharts' own click handlers do not carry the modifier keys, so read them
+  // off the native event on the way down instead of from the synthetic one.
+  const extendRef = useRef(false);
+  const dimmed = highlightKeys !== undefined && highlightKeys.length > 0;
 
   if (data.length === 0) {
     return <p className={cn("text-sm text-muted-foreground", className)}>{emptyMessage}</p>;
@@ -132,6 +137,9 @@ export function WaterfallChart({
       style={{ height }}
       role="img"
       aria-label={ariaLabel}
+      onClickCapture={(event) => {
+        extendRef.current = event.ctrlKey || event.shiftKey || event.metaKey;
+      }}
     >
       <BarChart data={data} margin={{ top: 16, right: 16, bottom: angled ? 40 : 24, left: 8 }}>
         <CartesianGrid vertical={false} />
@@ -208,14 +216,14 @@ export function WaterfallChart({
           isAnimationActive={false}
           onClick={(_entry, index) => {
             const bar = data[index];
-            if (bar && onSelect) onSelect(bar.key === selectedKey ? null : bar.key);
+            if (bar && onSelect) onSelect(bar.key, extendRef.current);
           }}
         >
           {data.map((bar) => (
             <Cell
               key={bar.key}
               fill={FILL[bar.kind]}
-              fillOpacity={selectedKey === null || selectedKey === bar.key ? 1 : DIMMED}
+              fillOpacity={!dimmed || highlightKeys.includes(bar.key) ? 1 : DIMMED}
               cursor={onSelect ? "pointer" : undefined}
             />
           ))}

@@ -773,8 +773,8 @@ committed — this repo is public).
 | M2 | Frontend data layer + pure aggregation module | ✅ (`8a8e26a`) |
 | M3 | Matrix + slicers (first visible milestone) | ✅ (`3516868`) |
 | M4 | Waterfall chart primitive | ✅ (`a7dd0b6`) |
-| M5 | Pie chart primitive | ✅ |
-| M6 | Cross-filtering | ⬜ |
+| M5 | Pie chart primitive | ✅ (`1a244c6`) |
+| M6 | Cross-filtering | ✅ |
 | M7 | Tests, accessibility, docs | ⬜ |
 
 ### What M1 established, by measurement
@@ -917,6 +917,38 @@ Three judgement calls, all recorded because they are deviations from the source 
   the legend, the exact value in the tooltip.
 - **Recharts' `Legend` sorts alphabetically by default** (`itemSorter: "value"`) — it was explaining
   the chart in an order the chart did not use. `itemSorter={null}` makes it follow the sectors.
+
+### M6 — cross-filtering, and the two rules that make it behave
+
+`lib/crossFilter.ts` is a pure reducer with 18 tests and no DOM. Two rules carry it:
+
+- **A visual never filters itself.** Clicking Food in the pie must leave the pie showing every
+  category — otherwise it collapses to a single 100% slice and there is no way back. The source keeps
+  its whole data and dims the marks outside the selection; every other visual filters.
+- **Several values of one dimension are OR; different dimensions are AND.** Selecting Food and Rent
+  means either; Food and 2025 means both. Anything else makes a ctrl-click return nothing, which
+  reads as a bug.
+
+Verified live against the reference images, and the numbers land exactly:
+
+- **`Breakdown Dashboard 9.png`** — clicking the pie's Food slice filters the matrix to 502 rows and
+  **drops the MoneyMarket and Savings columns** (that is the dynamic-column behaviour, not a
+  coincidence), footer **($16,089.78)**; the waterfall rescopes to 2024 **($12,878.96)** / 2025
+  **($5,100.64)** — both the legacy screenshot's figures — and the pie dims everything but Food.
+- **`Breakdown Dashboard 10.png`** — clicking the waterfall's 2025 bar filters the matrix to 2025
+  (footer **($471.13)**), dims the other bars, and rescopes the pie to Rent 31.08 / Banking 30.99 /
+  General 7.26 / Food 6.6, against the legacy report's 30.62 / 32.03 / 7.15 / 6.5.
+- **Restart** sits top-right as in the source report, clears selections *and* slicers, and disables
+  itself when there is nothing to clear.
+
+Two mechanics worth not rediscovering:
+
+- **Recharts' click handlers do not carry modifier keys.** Ctrl/shift-to-extend reads them off the
+  native event via `onClickCapture` on the chart container instead. There is a test for it — and note
+  that `userEvent` only carries a held key across calls made through the *same* `setup()` instance,
+  which is why those tests build one.
+- **`DataTable.onRowClick` now passes the originating event** alongside the row, so the matrix can
+  tell an extend-click from a plain one.
 
 ---
 

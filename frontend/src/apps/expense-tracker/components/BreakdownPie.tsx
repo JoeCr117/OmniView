@@ -30,12 +30,12 @@ import { LazyCategoryPieChart } from "@/components/charts/LazyCategoryPieChart";
  */
 export function BreakdownPie({
   rows,
-  selectedKey = null,
+  highlightKeys,
   onSelect,
 }: {
   rows: readonly BreakdownRow[];
-  selectedKey?: string | null;
-  onSelect?: (criterion: { dim: Dimension; key: string } | null) => void;
+  highlightKeys?: readonly string[];
+  onSelect?: (criterion: { dim: Dimension; key: string }, extend: boolean) => void;
 }) {
   const [drill, setDrill] = useState<DrillState>(INITIAL_DRILL);
   const [drillMode, setDrillMode] = useState(false);
@@ -49,12 +49,12 @@ export function BreakdownPie({
 
   const title = drillTitle("Expenses", drill, CATEGORY_HIERARCHY);
 
-  function handleSelect(key: string | null) {
-    if (drillMode && key !== null) {
+  function handleSelect(key: string, extend: boolean) {
+    if (drillMode) {
       setDrill(drillInto(drill, CATEGORY_HIERARCHY, key));
       return;
     }
-    if (onSelect) onSelect(key === null || dim === undefined ? null : { dim, key });
+    if (onSelect && dim !== undefined) onSelect({ dim, key }, extend);
   }
 
   return (
@@ -73,7 +73,7 @@ export function BreakdownPie({
         ariaLabel={title}
         format={formatUsdWhole}
         emptyMessage="No expenses in this selection."
-        selectedKey={selectedKey}
+        highlightKeys={highlightKeys}
         onSelect={handleSelect}
       />
     </section>

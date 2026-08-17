@@ -21,6 +21,7 @@ Breakdown, which is why they are modules rather than page locals.
 | `slicer.ts` | Power BI year/month slicer semantics: empty means all, click-to-clear, shift to extend. |
 | `breakdown.ts` | Grouping, pivoting, waterfall running totals and pie shares — all pure. |
 | `drill.ts` | Where a visual sits in its hierarchy: drill into (filters) vs. next level (does not). |
+| `crossFilter.ts` | Click one visual, reduce the others: OR within a dimension, AND across them. |
 | `*.test.ts` | Cover each (upload is tested through the XHR path). |
 
 ## Conventions & gotchas

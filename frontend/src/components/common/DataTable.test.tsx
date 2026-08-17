@@ -165,7 +165,9 @@ describe("DataTable", () => {
 
     mock.instances[0].fireRowClick({ name: "a" });
 
-    expect(onRowClick).toHaveBeenCalledWith({ name: "a" });
+    // The originating event comes with the row: modifier-clicks mean something
+    // to some callers.
+    expect(onRowClick).toHaveBeenCalledWith({ name: "a" }, expect.any(MouseEvent));
   });
 
   it("calls the newest row-click handler, not the one captured when the table was built", async () => {

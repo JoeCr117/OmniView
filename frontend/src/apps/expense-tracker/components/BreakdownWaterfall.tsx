@@ -46,12 +46,12 @@ const AXIS_LABELS: Record<Axis, string> = { date: "Date", category: "Category" }
 
 export function BreakdownWaterfall({
   rows,
-  selectedKey = null,
+  highlightKeys,
   onSelect,
 }: {
   rows: readonly BreakdownRow[];
-  selectedKey?: string | null;
-  onSelect?: (criterion: { dim: Dimension; key: string } | null) => void;
+  highlightKeys?: readonly string[];
+  onSelect?: (criterion: { dim: Dimension; key: string }, extend: boolean) => void;
 }) {
   const [axis, setAxis] = useState<Axis>("date");
   const [drills, setDrills] = useState<Record<Axis, DrillState>>({
@@ -73,14 +73,14 @@ export function BreakdownWaterfall({
     setDrills((current) => ({ ...current, [axis]: next }));
   }
 
-  function handleSelect(key: string | null) {
+  function handleSelect(key: string, extend: boolean) {
     // The closing Total bar restates the whole chart; it is not a filterable mark.
     if (key === WATERFALL_TOTAL_KEY) return;
-    if (drillMode && key !== null) {
+    if (drillMode) {
       setDrill(drillInto(drill, hierarchy, key));
       return;
     }
-    if (onSelect) onSelect(key === null || dim === undefined ? null : { dim, key });
+    if (onSelect && dim !== undefined) onSelect({ dim, key }, extend);
   }
 
   return (
@@ -122,7 +122,7 @@ export function BreakdownWaterfall({
         }}
         ariaLabel={drillTitle("Transactions", drill, hierarchy)}
         emptyMessage="No transactions in this selection."
-        selectedKey={selectedKey}
+        highlightKeys={highlightKeys}
         onSelect={handleSelect}
       />
     </section>

@@ -25,6 +25,12 @@ it client-side, so slicer clicks and drills cost no request. The arithmetic is
   so the matrix totals tie to the account totals rather than to "spend".
 - Drill state belongs to each visual, as in Power BI: the matrix owns its own and
   does not reset when the slicers change.
+- **Two filters compose, in this order**: the slicers scope the page, then a
+  cross-filter selection narrows the visuals that did not make it. A visual never
+  filters itself — it keeps its whole data and dims the marks outside the
+  selection, or the pie would collapse to a single 100% slice with no way back.
+- Restart clears selections *and* slicers; it disables itself when there is
+  nothing to clear.
 
 ## See also
 - [expense-tracker/](../README.md) · [check-book/](../check-book/README.md) · [components/](../../../../../apps/expense-tracker/components/README.md)
