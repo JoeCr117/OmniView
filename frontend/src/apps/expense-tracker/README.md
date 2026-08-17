@@ -12,7 +12,7 @@ this code. `lib/api.ts` is the only place that names `/api/expense-tracker/*`
 ## Contents
 | Item | What it does |
 |------|--------------|
-| `lib/` | `api.ts` (typed client + `DAILY_METRICS_KEY`) and `dates.ts` (date-column helpers). |
+| `lib/` | `api.ts` (typed client + cache keys), `dates.ts`, `money.ts`, `slicer.ts` and `breakdown.ts`. |
 
 ## Conventions & gotchas
 - May not import from `apps/admin-portal/*` (eslint-enforced).

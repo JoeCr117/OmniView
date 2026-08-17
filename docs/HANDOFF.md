@@ -769,8 +769,8 @@ committed — this repo is public).
 
 | M | Scope | Status |
 |---|---|---|
-| M1 | Backend: `GET /transactions/breakdown` + sign tripwire | ✅ |
-| M2 | Frontend data layer + pure aggregation module | ⬜ |
+| M1 | Backend: `GET /transactions/breakdown` + sign tripwire | ✅ (`acb605d`) |
+| M2 | Frontend data layer + pure aggregation module | ✅ |
 | M3 | Matrix + slicers (first visible milestone) | ⬜ |
 | M4 | Waterfall chart primitive | ⬜ |
 | M5 | Pie chart primitive | ⬜ |
@@ -803,6 +803,29 @@ interaction would buy nothing and cost a round-trip per click.
 in `test_query_budgets.py`. The 30 rows with no category surface as an **`Uncategorized`** bucket
 rather than being dropped, so the matrix total ties to the account totals (verified: 1,586 rows
 summing to 18,345.21, equal to the four per-account nets).
+
+### M2 — where the logic lives
+
+All three visuals' arithmetic is **pure functions in `apps/expense-tracker/lib/breakdown.ts`**:
+`dimensionKey`/`dimensionLabel`, `pivot` (matrix tree), `waterfall` (running totals), `pieSlices`
+(spend shares), `filterRows` (the substrate M6's cross-filter builds on). No DOM, no fixture, no
+server — which is why they carry 40 tests and why a slicer click recomputes without a request.
+
+Two things Check Book had inline were **extracted rather than copied**, and Check Book now imports
+them: `lib/slicer.ts` (Power BI slicer semantics — empty means *all*, clicking the only selection
+clears it, shift/ctrl extends) and `lib/money.ts` (accounting currency + the Tabulator column
+presets). The page's DOM and `.slicer-btn` classes are unchanged, and `e2e/check-book.spec.ts` was
+run green against the refactor.
+
+Group keys are chosen to **sort correctly as plain strings** (`"01".."12"` for months), so no visual
+needs a parallel numeric ordering field; `dimensionLabel` turns `"02"` into `"February"` at the edge.
+Aggregates round to the cent at every boundary — summing floats otherwise leaves
+`-1069.9600000000003` in a chart label.
+
+Frontend coverage rose to **statements 59.44 / branches 54.42 / functions 54.39 / lines 59.4** against
+thresholds of 57/51/52/57. **The thresholds were deliberately not ratcheted yet**: M3–M6 are the
+UI-heavy milestones, and raising the floor before them risks having to lower it, which the ratchet
+forbids. Raise them once in M7, to whatever the finished feature measures.
 
 ---
 

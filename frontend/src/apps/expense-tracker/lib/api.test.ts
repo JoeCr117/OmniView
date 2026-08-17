@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getBreakdown,
   getBudgetMapYaml,
   getDailyMetrics,
   getRawCsvRows,
@@ -29,6 +30,20 @@ describe("expense-tracker api client", () => {
     await getDailyMetrics({ limit: 5, start: "2024-01-01" });
     expect(fetchMock.mock.calls[0][0]).toBe(
       "/api/expense-tracker/dailymetrics?limit=5&start=2024-01-01",
+    );
+  });
+
+  it("requests the breakdown feed unwindowed by default", async () => {
+    const fetchMock = mockFetch();
+    await getBreakdown();
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/expense-tracker/transactions/breakdown");
+  });
+
+  it("windows the breakdown feed when given dates", async () => {
+    const fetchMock = mockFetch();
+    await getBreakdown({ start: "2024-01-01", end: "2024-12-31" });
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/expense-tracker/transactions/breakdown?start=2024-01-01&end=2024-12-31",
     );
   });
 

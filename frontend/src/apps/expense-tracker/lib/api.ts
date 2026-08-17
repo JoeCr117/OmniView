@@ -52,6 +52,34 @@ export async function getAllDailyMetrics(): Promise<DailyMetric[]> {
   return res.items;
 }
 
+/** One transaction with its category names resolved. The Breakdown page's only feed. */
+export interface BreakdownRow {
+  date_sk: number;
+  calendar_date: string;
+  account_type: string;
+  category: string;
+  sub_category: string;
+  label: string;
+  /** Signed as the warehouse stores it: expenses negative, income positive. */
+  amount: number;
+}
+
+/**
+ * The Breakdown page pivots, drills and cross-filters this one payload
+ * client-side, so it is fetched whole under a shared key rather than re-queried
+ * per interaction - the same trade Check Book and Daily Trends make with
+ * DAILY_METRICS_KEY.
+ */
+export const BREAKDOWN_KEY = "expense-tracker:breakdown:all";
+
+export function getBreakdown(params?: { start?: string; end?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.start) qs.set("start", params.start);
+  if (params?.end) qs.set("end", params.end);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch<BreakdownRow[]>(`${API}/transactions/breakdown${suffix}`);
+}
+
 export interface UncategorizedTransaction {
   date_sk: number;
   account_type: string;
