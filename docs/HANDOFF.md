@@ -772,8 +772,8 @@ committed — this repo is public).
 | M1 | Backend: `GET /transactions/breakdown` + sign tripwire | ✅ (`acb605d`) |
 | M2 | Frontend data layer + pure aggregation module | ✅ (`8a8e26a`) |
 | M3 | Matrix + slicers (first visible milestone) | ✅ (`3516868`) |
-| M4 | Waterfall chart primitive | ✅ |
-| M5 | Pie chart primitive | ⬜ |
+| M4 | Waterfall chart primitive | ✅ (`a7dd0b6`) |
+| M5 | Pie chart primitive | ✅ |
 | M6 | Cross-filtering | ⬜ |
 | M7 | Tests, accessibility, docs | ⬜ |
 
@@ -889,6 +889,34 @@ Three implementation notes:
 
 The page is now a two-column grid weighted 7:5 toward the matrix, stacking below `xl`: six currency
 columns and a chart do not both fit at half width.
+
+### M5 — the pie, and a categorical palette that was validated rather than picked
+
+`CategoryPieChart` completes the three visuals. Verified live: at Category level it reads Investment
+**$46,059**, Banking **$40,253**, Rent **$39,243**, Food **$16,090**, Car **$8,924** — all exactly the
+database figures, and Investment's $46,059 is the same number `Breakdown Dashboard 7.png` shows.
+Drilling into Food reproduces `Breakdown Dashboard 8.png`: title "Expenses by Category and
+SubCategory", slices FastFood 52.92% / Dining 32.64% / Grocery 14.44% (the legacy report's 52.33 /
+31.5 / 16.17 — the same three, a different data vintage).
+
+**`--chart-cat-1..8` are new tokens, and they were validated, not chosen.** The existing `--chart-1..5`
+are *series* colours assigned in registration order; a pie needs *identity* colours, and it needs more
+than five. The eight new ones pass a lightness band, a chroma floor, adjacent-pair separation under
+protanopia/deuteranopia/tritanopia, and a contrast check, **in both themes** — the dark values are
+re-stepped against the dark surface, not an automatic lightening. Re-run the check before changing
+one.
+
+Three judgement calls, all recorded because they are deviations from the source report:
+
+- **Eight categorical slots, never cycled; a ninth category folds into `Other`** (neutral, and not
+  clickable — an aggregate cannot filter to anything). Past about eight, adjacent classes stop being
+  tellable apart. The categories this folds are the smallest slivers, and they remain reachable from
+  the waterfall's Category axis and the matrix, so nothing is unreachable from the page.
+- **Direct labels are the share only** (`26.1%`), not the legacy `Name $Value (pct%)`. Those strings
+  need a pane about twice this wide; here they clipped against the edge and each other. The name is in
+  the legend, the exact value in the tooltip.
+- **Recharts' `Legend` sorts alphabetically by default** (`itemSorter: "value"`) — it was explaining
+  the chart in an order the chart did not use. `itemSorter={null}` makes it follow the sectors.
 
 ---
 

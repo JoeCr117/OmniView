@@ -278,6 +278,22 @@
   --chart-3: oklch(0.72 0.16 70); /* amber */
   --chart-4: oklch(0.55 0.2 20); /* red */
   --chart-5: oklch(0.55 0.17 305); /* violet */
+  /* Categorical slots, light theme: for a chart where colour carries *identity*
+     rather than series order - the Breakdown pie. Eight, in fixed order, never
+     cycled: a ninth category folds into "Other" (--chart-other) rather than
+     inventing a hue, because past ~8 the adjacent classes stop being tellable
+     apart. These values are not eyeballed - they pass a lightness band, a
+     chroma floor, adjacent-pair separation under protanopia/deuteranopia/
+     tritanopia, and a normal-vision floor. Re-validate before changing one. */
+  --chart-cat-1: #2a78d6; /* blue */
+  --chart-cat-2: #eb6834; /* orange */
+  --chart-cat-3: #1baf7a; /* aqua */
+  --chart-cat-4: #eda100; /* yellow */
+  --chart-cat-5: #e87ba4; /* magenta */
+  --chart-cat-6: #008300; /* green */
+  --chart-cat-7: #4a3aa7; /* violet */
+  --chart-cat-8: #e34948; /* red */
+  --chart-other: #9a9995; /* the folded tail - deliberately not a hue */
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -315,6 +331,18 @@
   --chart-3: oklch(0.8 0.14 70);
   --chart-4: oklch(0.68 0.18 20);
   --chart-5: oklch(0.7 0.15 305);
+  /* Categorical slots, dark theme: the same eight hues re-stepped against the
+     dark surface and re-validated there - not an automatic lightening of the
+     light values. */
+  --chart-cat-1: #3987e5;
+  --chart-cat-2: #d95926;
+  --chart-cat-3: #199e70;
+  --chart-cat-4: #c98500;
+  --chart-cat-5: #d55181;
+  --chart-cat-6: #008300;
+  --chart-cat-7: #9085e9;
+  --chart-cat-8: #e66767;
+  --chart-other: #6b6b66;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);

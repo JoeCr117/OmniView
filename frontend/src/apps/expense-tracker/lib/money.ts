@@ -14,6 +14,12 @@ const accountingUsd = new Intl.NumberFormat("en-US", {
   currencySign: "accounting",
 });
 
+const wholeUsd = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
 const compactUsd = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -33,6 +39,11 @@ export function formatUsd(value: number): string {
  */
 export function formatUsdCompact(value: number): string {
   return compactUsd.format(value);
+}
+
+/** $46,059 - for chart labels, where the cents are noise but the magnitude is not. */
+export function formatUsdWhole(value: number): string {
+  return wholeUsd.format(value);
 }
 
 /** Tabulator cell formatter; blank for anything that isn't a number. */

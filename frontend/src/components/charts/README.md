@@ -18,6 +18,7 @@ time, or how a running total got where it did.
 |------|--------------|
 | `TimeSeriesChart.tsx` | Value over time: titled axes + unit, crosshair, cursor tooltip; downsamples each series. |
 | `WaterfallChart.tsx` | How a running total got here: floating bars, connectors, green up / red down / primary total. |
+| `CategoryPieChart.tsx` | Parts of a whole by identity: eight categorical slots, the tail folded into `Other`. |
 | `Lazy*.tsx` | `next/dynamic` wrappers (`ssr:false`, ChartSkeleton fallback) that keep Recharts out of the initial bundle. |
 | `downsample.ts` | LTTB (Largest-Triangle-Three-Buckets) — thins to ~1,000 real points. |
 | `*.test.*` | Assert axis units, required ariaLabel, empty state, LTTB spike preservation, waterfall colour/selection. |
@@ -35,6 +36,15 @@ time, or how a running total got where it did.
 - These primitives may not import app code (`apps/<id>/*`); a chart that needs an
   app's types is the wrong shape. They define their own datum types, which the
   app's are structurally compatible with.
+- **The pie's eight categorical slots are never cycled.** A ninth category folds
+  into `Other` (`foldToPalette`), painted a neutral — Other is an aggregate, so
+  it is also not clickable: it cannot filter to anything.
+- The pie direct-labels only the share (`26.1%`), not `Name $Value (pct%)` as the
+  legacy Power BI report did: those strings need a pane about twice as wide and
+  clip here. The name is in the legend, the value in the tooltip.
+- **Recharts' `Legend` sorts alphabetically by default** (`itemSorter: "value"`),
+  which explains a chart in an order the chart does not use. The pie passes
+  `itemSorter={null}` so the legend follows the sectors, largest first.
 - The Recharts chunk must stay referenced by no exported HTML page (verified in
   the build) — don't statically import it into a shared module.
 - Test infra note: the `ResizeObserver` stub must report a size, or Recharts

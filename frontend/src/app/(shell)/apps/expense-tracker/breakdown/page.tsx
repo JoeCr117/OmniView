@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { BREAKDOWN_KEY, getBreakdown } from "@/apps/expense-tracker/lib/api";
 import { YearMonthSlicer } from "@/apps/expense-tracker/components/YearMonthSlicer";
 import { BreakdownMatrix } from "@/apps/expense-tracker/components/BreakdownMatrix";
+import { BreakdownPie } from "@/apps/expense-tracker/components/BreakdownPie";
 import { BreakdownWaterfall } from "@/apps/expense-tracker/components/BreakdownWaterfall";
 import { inSlicerScope, monthsInYears, slicerPick } from "@/apps/expense-tracker/lib/slicer";
 import { ErrorState } from "@/components/common/AsyncState";
@@ -73,6 +74,7 @@ export default function BreakdownPage() {
         <BreakdownMatrix rows={scoped} />
         <div className="flex flex-col gap-6">
           <BreakdownWaterfall rows={scoped} />
+          <BreakdownPie rows={scoped} />
         </div>
       </div>
     </main>

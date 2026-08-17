@@ -17,6 +17,7 @@ these. Nothing here is cross-app: a component two *apps* need is promoted to
 | `DrillToolbar.tsx` | The drill controls every Breakdown visual carries, plus the shared `ToolbarButton`. |
 | `BreakdownMatrix.tsx` | The Breakdown matrix: nets by date/label × account, plus its expand-all control. |
 | `BreakdownWaterfall.tsx` | Net transactions as a waterfall, over the date or the category hierarchy. |
+| `BreakdownPie.tsx` | Expenses by category, drilling Category → SubCategory → Label. |
 
 ## Conventions & gotchas
 - **`BreakdownMatrix` keys its `DataTable` on the column signature.** `DataTable`
