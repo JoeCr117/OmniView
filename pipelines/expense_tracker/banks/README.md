@@ -27,6 +27,14 @@ dbt project's inputs.
   — plus, if the bank has emitted more than one export layout, a schema
   declaration table beside the subclass (`golden1_schema.py` is the example).
 - Columns are lowercased at staging so dbt can use unquoted identifiers.
+- **Sign is normalized here, never downstream.** Every row a `Bank` stages means
+  the same thing: money out is negative, money in is positive, and `Balance` is a
+  signed contribution to net worth (a card debt is negative). Banks do not all
+  export it that way — Golden1's pre-2026 credit card is written from the
+  issuer's side, where a purchase is positive — so each export declares its
+  convention and the parser restates it. Correcting a sign in dbt instead is what
+  produced the 2026 inversion: one blanket `*-1` in `silver_Golden1_CreditCard`
+  fixed the rows it was written for and inverted every row it was not.
 
 ## See also
 - [expense_tracker/](../README.md) · [all_banks/](all_banks/README.md) · [dbt/](../dbt/README.md)

@@ -38,13 +38,30 @@ def _v2_row(date: str, description: str, *, credit: str = '', debit: str = '') -
 ALL_2026_FIXTURES = ('CreditCard', 'FreeChecking', 'MoneyMarket', 'Savings')
 
 
+def _normalized(csv_text: str, *, account: str = 'FreeChecking', where: str = 'test'):
+    """`_normalize_file` with the account defaulted, for the tests it does not concern.
+
+    `account` selects the file's sign convention, so `_normalize_file` requires
+    it. Almost nothing in this module is about that: these tests cover column
+    mapping, date parsing and row order, and would carry the same literal
+    account on twenty-odd call sites for no reader benefit. The default is a
+    deposit account, which is `DEFAULT_CONVENTION` - money and balance pass
+    through untouched, so nothing here is reading a normalized number and
+    believing it is the source's.
+
+    The sign convention itself is `test_golden1_sign_convention.py`, which
+    calls the real entry point and names its accounts.
+    """
+    return _normalize_file(csv_text, account=account, where=where)
+
+
 class TestMoneyColumnMapping:
     def test_v2_debit_and_credit_read_by_name_not_position(self):
         """v2 exports Credit before Debit; v1 exports the reverse. A
         positional read would swap every sign here while a shape/column-count
         test still passes - so this asserts exact cell values, not just sign.
         """
-        df = _normalize_file(_fixture_text('FreeChecking', '2026.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2026.csv'), where='test')
 
         payroll = df[df['Description'] == 'EXAMPLE EMPLOYER (PAYROLL)'].iloc[0]
         assert payroll['Credit'] == 2510.00
@@ -56,7 +73,7 @@ class TestMoneyColumnMapping:
 
     @pytest.mark.parametrize('account', ALL_2026_FIXTURES)
     def test_v2_debit_never_positive_credit_never_negative(self, account):
-        df = _normalize_file(_fixture_text(account, '2026.csv'), where='test')
+        df = _normalized(_fixture_text(account, '2026.csv'), account=account, where='test')
         debit = df['Debit'].dropna()
         credit = df['Credit'].dropna()
         assert (debit <= 0).all()
@@ -69,7 +86,7 @@ class TestDerivedTypeColumn:
         (DEBIT, CREDIT) share almost no meaning - if the mapping ever
         regressed to copying one into the other, this is what would leak.
         """
-        df = _normalize_file(_fixture_text('FreeChecking', '2026.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2026.csv'), where='test')
         types = set(df['Type'].dropna().unique())
         assert types <= {'DEBIT', 'CREDIT'}
         assert 'Checking' not in types
@@ -105,7 +122,7 @@ class TestReferenceNumberRepresentation:
         column was mapped to some v2 source column instead - most likely
         'Account', which holds a masked account number, not a reference.
         """
-        df = _normalize_file(_fixture_text('FreeChecking', '2026.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2026.csv'), where='test')
         assert df['ReferenceNo.'].isna().all()
 
     def test_v1_reference_number_round_trips_without_a_trailing_dot_zero(self):
@@ -114,7 +131,7 @@ class TestReferenceNumberRepresentation:
         legacy value through `str(2000000001.0)`, growing a trailing '.0'
         that was never in the source export.
         """
-        df = _normalize_file(_fixture_text('FreeChecking', '2024.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2024.csv'), where='test')
         non_null = df['ReferenceNo.'].dropna()
         assert len(non_null) > 0
         for value in non_null:
@@ -129,7 +146,7 @@ class TestTransactionDirectionEdgeCases:
             '07/01/2026', 'Test Two-Sided', credit='50.00', debit='-50.00'
         )
         with pytest.raises(AmbiguousTransactionDirectionError):
-            _normalize_file(csv_text, where='test')
+            _normalized(csv_text, where='test')
 
     def test_neither_debit_nor_credit_populated_yields_none_not_nan(self):
         """Direction must be Python `None`, not a float NaN left over from
@@ -137,11 +154,11 @@ class TestTransactionDirectionEdgeCases:
         NULL a directionless row needs downstream.
         """
         csv_text = V2_HEADER_LINE + _v2_row('07/01/2026', 'Test No Money')
-        df = _normalize_file(csv_text, where='test')
+        df = _normalized(csv_text, where='test')
         assert df.loc[0, 'Type'] is None
 
     def test_real_statement_available_row_has_no_direction(self):
-        df = _normalize_file(_fixture_text('FreeChecking', '2026.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2026.csv'), where='test')
         row = df[df['Description'] == 'STATEMENT AVAILABLE'].iloc[0]
         assert row['Type'] is None
 
@@ -151,7 +168,7 @@ class TestTransactionDirectionEdgeCases:
         check as `!= 0` would silently misclassify this row as directionless.
         """
         csv_text = V2_HEADER_LINE + _v2_row('07/01/2026', 'Test Zero Fee', debit='0.00')
-        df = _normalize_file(csv_text, where='test')
+        df = _normalized(csv_text, where='test')
         assert df.loc[0, 'Type'] == 'DEBIT'
 
 
@@ -161,7 +178,7 @@ class TestDateParsing:
         failure mode a format-less/inferred parse would risk.
         """
         csv_text = V2_HEADER_LINE + _v2_row('03/04/2026', 'Test Day Month Order')
-        df = _normalize_file(csv_text, where='test')
+        df = _normalized(csv_text, where='test')
         assert df.loc[0, 'DateSK'] == 20260304
 
     def test_v1_single_digit_month_and_day_parse(self):
@@ -169,19 +186,19 @@ class TestDateParsing:
             'Date,ReferenceNo.,Type,Description,Debit,Credit,CheckNumber,Balance\n'
             '3/4/2026,1,DEPOSIT,Test Single Digit,,10.00,,10.00\n'
         )
-        df = _normalize_file(csv_text, where='test')
+        df = _normalized(csv_text, where='test')
         assert df.loc[0, 'DateSK'] == 20260304
 
     def test_v2_zero_padded_month_and_day_parse(self):
         csv_text = V2_HEADER_LINE + _v2_row('03/04/2026', 'Test Zero Padded', credit='10.00')
-        df = _normalize_file(csv_text, where='test')
+        df = _normalized(csv_text, where='test')
         assert df.loc[0, 'DateSK'] == 20260304
 
     def test_malformed_date_raises_naming_file_and_row_but_not_the_date(self):
         bad_date = '99/99/9999'
         csv_text = V2_HEADER_LINE + _v2_row(bad_date, 'Test Bad Date', credit='10.00')
         with pytest.raises(ValueError) as exc_info:
-            _normalize_file(csv_text, where='Golden1/FreeChecking/bad.csv')
+            _normalized(csv_text, where='Golden1/FreeChecking/bad.csv')
         message = str(exc_info.value)
         assert 'Golden1/FreeChecking/bad.csv' in message
         assert '0' in message  # row position 0 named
@@ -194,22 +211,22 @@ class TestDateParsing:
         """
         csv_text = V2_HEADER_LINE + _v2_row('', 'Test Blank Date', credit='10.00')
         with pytest.raises(ValueError, match=re.escape('Golden1/FreeChecking/blank.csv')):
-            _normalize_file(csv_text, where='Golden1/FreeChecking/blank.csv')
+            _normalized(csv_text, where='Golden1/FreeChecking/blank.csv')
 
     def test_date_sk_dtype_is_int64(self):
-        df = _normalize_file(_fixture_text('FreeChecking', '2026.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2026.csv'), where='test')
         assert df['DateSK'].dtype == np.int64
 
 
 class TestDroppedColumns:
     def test_v2_source_only_columns_do_not_survive_into_the_conformed_frame(self):
-        df = _normalize_file(_fixture_text('FreeChecking', '2026.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2026.csv'), where='test')
         lowered = {name.casefold() for name in df.columns}
         for dropped in ('account', 'account type', 'category', 'daily balance', 'check #'):
             assert dropped not in lowered
 
     def test_check_number_and_balance_carry_the_renamed_v2_values(self):
-        df = _normalize_file(_fixture_text('FreeChecking', '2026.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2026.csv'), where='test')
         withdrawal = df[df['Description'] == 'Withdrawal'].iloc[0]
         assert withdrawal['CheckNumber'] == 1058
 
@@ -219,11 +236,11 @@ class TestDroppedColumns:
 
 class TestSingleFileRowOrder:
     def test_v2_file_is_returned_oldest_first(self):
-        df = _normalize_file(_fixture_text('FreeChecking', '2026.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2026.csv'), where='test')
         assert list(df['DateSK']) == sorted(df['DateSK'])
 
     def test_v1_already_ascending_file_is_left_unchanged(self):
-        df = _normalize_file(_fixture_text('FreeChecking', '2024.csv'), where='test')
+        df = _normalized(_fixture_text('FreeChecking', '2024.csv'), where='test')
         assert list(df['DateSK']) == sorted(df['DateSK'])
         assert df.loc[0, 'Description'] == 'EXAMPLE EMPLOYER (PAYROLL)'
 
@@ -235,7 +252,7 @@ class TestSingleFileRowOrder:
             + _v2_row('03/01/2026', 'Test Newest', credit='10.00')
         )
         with pytest.raises(ValueError, match='newest-first'):
-            _normalize_file(csv_text, where='test')
+            _normalized(csv_text, where='test')
 
 
 class TestToOldestFirstRejectsUndeclaredRowOrder:
@@ -275,7 +292,7 @@ class TestDirectionlessRowWarning:
         canary = 'INVENTED CANARY NO MONEY ROW'
         csv_text = V2_HEADER_LINE + _v2_row('07/01/2026', canary)
 
-        _normalize_file(csv_text, where='Golden1/FreeChecking/nomoney.csv')
+        _normalized(csv_text, where='Golden1/FreeChecking/nomoney.csv')
 
         captured = capsys.readouterr()
         assert 'Golden1/FreeChecking/nomoney.csv' in captured.out
@@ -298,7 +315,7 @@ class TestAscendingOutOfOrderWarning:
             '01/01/2026,2,DEPOSIT,Second Invented Row,,5.00,,15.00\n'
         )
 
-        _normalize_file(csv_text, where='Golden1/Savings/backwards.csv')
+        _normalized(csv_text, account='Savings', where='Golden1/Savings/backwards.csv')
 
         captured = capsys.readouterr()
         assert 'Golden1/Savings/backwards.csv' in captured.out
@@ -313,7 +330,7 @@ class TestAmbiguousDirectionMessageContent:
         csv_text = V2_HEADER_LINE + _v2_row('07/01/2026', canary, credit='50.00', debit='-50.00')
 
         with pytest.raises(AmbiguousTransactionDirectionError) as exc_info:
-            _normalize_file(csv_text, where='Golden1/Checking/twoSided.csv')
+            _normalized(csv_text, account='Checking', where='Golden1/Checking/twoSided.csv')
 
         message = str(exc_info.value)
         assert 'Golden1/Checking/twoSided.csv' in message

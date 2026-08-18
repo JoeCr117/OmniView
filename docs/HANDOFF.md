@@ -49,6 +49,7 @@ All five phases are complete and deployed.
 | 9 | **Omni-ERD milestone set 3** — key tags, toolbar pill, multi-select | ✅ complete (2026-07-23), deployed — see [Phase 9 detail](#phase-9-progress--omni-erd-key-tags-toolbar-pill-multi-select) |
 | 10 | **Objective quality measurement** — measured baselines, ratcheted gates, pre-commit + CI | ✅ complete (2026-08-15), not yet deployed — see [Phase 10 detail](#phase-10--objective-quality-measurement) |
 | 11 | **ExpenseTracker Breakdown** — the legacy Power BI matrix/waterfall/pie page, rebuilt in-app | ✅ complete (2026-08-17), not yet deployed — see [Phase 11 detail](#phase-11--expensetracker-breakdown) |
+| 12 | **Golden1 v2 sign inversion** — 2026 card purchases reported as income; sign now declared per (version, account) and normalized in the parser | ✅ complete (2026-08-17), not yet deployed — see [Phase 12 detail](#phase-12--the-golden1-v2-sign-inversion) |
 
 ---
 
@@ -779,6 +780,11 @@ committed — this repo is public).
 
 ### What M1 established, by measurement
 
+> ⚠️ **Both claims below were wrong, and Phase 12 fixes what they missed.** They are kept as
+> written because the *shape* of the error is the lesson: every measurement was taken on
+> `FreeChecking`, and every conclusion was stated about all four accounts. Read them with
+> [Phase 12](#phase-12--the-golden1-v2-sign-inversion).
+
 **The warehouse's signs are already consistent, so no pipeline change is needed.** Queried against the
 live compose database: `Food/FreeChecking` = −9,581.97 over 301 rows with **zero** positive rows,
 `Rent/FreeChecking` = −38,655.17 over 19 rows with zero, `Income/FreeChecking` = +190,445.61 all
@@ -792,6 +798,13 @@ synthetic `docs/examples/Banks/Golden1/CreditCard/*.csv` carry *negative* debits
 would flip card expenses positive. Seeding tests from those would invert every spend visual.
 `transactions/tests/test_breakdown.py::test_expenses_are_negative_on_every_account_type` is the
 tripwire, and `datavault_schema.sql` now seeds a deposit-account expense specifically to arm it.
+
+> **Why that reasoning failed.** "The real Golden1 card exports carry positive debits" was true of
+> the 2024/2025 files and false of the 2026 file, which carries negative debits — so the blanket
+> negation inverted every 2026 card row. The fixtures were then read as the thing that was wrong,
+> when they in fact matched what the *newer* real export does; the v1 file is the outlier. Three
+> sampled categories were all `FreeChecking`, the one account type that never changed convention,
+> and none of the 176 inverted rows was in the sample.
 
 **The whole fact fits in one payload.** 1,586 rows, 2024-01-01 → 2026-07-29, 170 labels, 32
 subcategories — so `/breakdown` is unpaginated and the page pivots, drills and cross-filters
@@ -1114,6 +1127,80 @@ worth re-confirming after any future rebuild-less deploy.
 
 ---
 
+## Phase 12 — the Golden1 v2 sign inversion
+
+Reported from the Breakdown page: PG&E on 2026-07-24 showed **+$237.66** on the credit card. The CSV
+says `-237.66`. Every 2026 card purchase was reported as income.
+
+**Root cause.** `silver_Golden1_CreditCard.sql` applied a blanket `*-1` to `(Debit + Credit)`. That
+negation is correct for the 2024/2025 export, which writes the card from the **issuer's** side (a
+purchase is positive, because it increases what you owe), and wrong for the 2026 export, which
+already writes it from the **cardholder's** side. One expression, a table holding both conventions:
+it corrected the rows it was written for and inverted the rest.
+
+| CreditCard rows | reported as spend | reported as income |
+|---|---|---|
+| 2025 (v1) | 252 | 12 |
+| 2026 (v2), before | 7 | **176** |
+| 2026 (v2), after | **176** | 7 |
+
+**Blast radius, measured.** $5,947.90 of 2026 card spend booked as income. The waterfall read
+2026 = +$19,415.17 against 2024's −$598.83. `pieSlices` admits only groups whose net is negative, so
+flipped purchases left the expenses chart entirely *and* cancelled real spend in their category.
+`_fix_intraday_balance` ran its cumulative sum across the sign discontinuity at 2026-01-02, so the
+app reported **−$13.33** owed on 2026-07-28 where the card actually owed **$1,576.61** — and of the
+132 rows where the 2026 CSV states the true balance, **zero** matched.
+
+**Why no test caught it.** The synthetic fixtures did not reproduce the data that breaks it.
+`docs/examples/Banks/Golden1/CreditCard/2024.csv` was written in the cardholder convention with a
+populated balance; the real v1 file uses the issuer convention with a `Balance` column of literal
+zeros. Every v2 fixture populated `Daily Balance` on every row where the real export populates one
+per *date*. Fixing the fixtures was therefore the first milestone, not an afterthought — until they
+told the truth, no assertion could fail.
+
+### What changed
+
+- **Sign is declared as data, per (version, account)**, in `golden1_schema.py`: `MoneySign`,
+  `BalanceMeaning`, `ACCOUNT_CONVENTIONS` (two entries and a default). It cannot key on version
+  alone — v1's header is byte-identical across all four accounts, so `detect_schema` returns
+  `golden1.v1` for the card and for checking alike, while only the card is issuer-signed.
+- **Normalization moved into the parser** (`_to_canonical_signs`), so every row below it means one
+  thing: money out negative, money in positive, `Balance` a signed contribution to net worth. The
+  three `*-1` expressions in `silver_Golden1_CreditCard` and `silver_Golden1_DailyBalances` are gone.
+- **`CREDIT_CARD_BALANCE_ANCHOR = ('2025-07-12', 1749.18)` was deleted.** `_fill_missing_balances`
+  now anchors each empty balance to the nearest balance the bank actually stated, preferring the next
+  over the previous (v2 states a date's *close*, so an earlier row of that day is the close minus the
+  transactions still to come). It also runs for all four accounts, which filled the 14 NULL
+  FreeChecking 2026 balances that v2's one-per-date format had introduced.
+- **Two tripwires.** `test_golden1_sign_convention.py` reconciles the parser's rebuilt balances
+  against every balance the export states — a right-hand side read out of the CSV, so no sign error
+  can satisfy it. `tests/Golden1/TransactionSignSurvivesSilver.sql` fails `dbt build` if any model
+  above bronze changes a day's total, which is the defect class, not just the defect.
+
+### Verified against real data
+
+The derived anchor reproduced **all 132** exported 2026 balances to the cent — and independently
+landed on **−1,749.18 at 2025-07-08**, the hand-verified figure the deleted constant carried. That
+agreement is what made deleting it safe: two independent derivations of the same number.
+
+| Check | Before | After |
+|---|---|---|
+| PG&E 2026-07-24 | +$237.66 | **−$237.66** |
+| CreditCard balance 2026-07-28 | −$13.33 | **−$1,576.61** |
+| Exported 2026 balances reconciled | 0 / 132 | **132 / 132** |
+| NULL balances in gold | 14 | **0** |
+| 2024 / 2025 output | — | **unchanged** (v1 was already corrected downstream; the correction just moved) |
+
+Suites: `uv run pytest` 543 passed · Vitest 493 passed · `dbt build` PASS=23 with the one
+pre-existing `CatToSubCatSums` failure (the Travel category budgets $390 against $440 of
+subcategories — a BudgetMap data issue, documented above, unrelated to this work).
+
+**Out of scope, logged.** v2 adds a bank-assigned `Category` column (36 values, e.g.
+`Food & Drink/Dining Out`) that the parser still drops. Mapping it needs a precedence rule against
+the BudgetMap and belongs to its own decision.
+
+---
+
 ## Outstanding tasks
 
 A backlog, not work in flight — none of these are started, and each is picked up
@@ -1129,6 +1216,7 @@ deliberately rather than opportunistically.
 | **Wire a live Unity Catalog source to Omni-ERD** | The adapter is complete and fixture-tested; set `OMNI_ERD_DATABRICKS_CATALOG` + `OMNI_ERD_WAREHOUSE_ID` and add its namespaces in `sources.py`. |
 | **Click through Omni-ERD layout persistence** | Drag → refresh → tables stay put. Verified at API + DB level, never in a browser: there is no local user account and one would have to be created. |
 | Real Entra ID round-trip test | Needs the user's app registration; redirect URI `/accounts/microsoft/login/callback/`. |
+| **Map Golden1 v2's bank-assigned `Category` column** | The 2026 export carries 36 values (`Food & Drink/Dining Out`, …) that the parser drops. Useful as a fallback for the Uncategorized tab, but needs a precedence rule against the BudgetMap first. Deferred out of Phase 12 deliberately. |
 | Read-only Lakebase role for shared external users | Requested idea, never specced. |
 | Friendlier pre-first-Rebuild empty state | Currently a bare table. |
 | Functional header search | Present in the chrome, does nothing. |

@@ -21,10 +21,7 @@ import pandas as pd
 import pytest
 
 from pipelines.expense_tracker.banks.all_banks import golden1 as golden1_module
-from pipelines.expense_tracker.banks.all_banks.golden1 import (
-    CREDIT_CARD_BALANCE_ANCHOR,
-    Golden1,
-)
+from pipelines.expense_tracker.banks.all_banks.golden1 import Golden1
 from pipelines.expense_tracker.banks.all_banks.golden1_schema import (
     UnknownCsvSchemaError,
 )
@@ -245,67 +242,75 @@ class TestCategoryColumnCollision:
             )
 
 
-class TestBalanceAnchorStability:
-    """Appending rows dated after `CREDIT_CARD_BALANCE_ANCHOR` cannot
-    move the anchor. `_fix_intraday_balance` resolves the anchor to the
-    nearest date <= the known date that is PRESENT in the frame; rows dated
-    later than the anchor are, by construction, excluded from that search,
-    so every row up to and including the anchor date must price out
-    identically whether or not those later rows exist.
+def _account_frame(account: str, filenames: tuple[str, ...]) -> pd.DataFrame:
+    """One account parsed from exactly `filenames`, in the order given."""
+    bank = Golden1(
+        BankSource(
+            name='Golden1',
+            budget_map_yaml=BUDGET_MAP_YAML,
+            accounts={
+                account: [(name, _fixture_text(account, name)) for name in filenames],
+            },
+        )
+    )
+    return bank.account_data[account]
+
+
+class TestAppendingALaterFileDoesNotMoveEarlierBalances:
+    """Next year's export cannot rewrite this year's reported balances.
+
+    `_fill_missing_balances` anchors each empty balance to the NEAREST STATED
+    one, preferring the next over the previous. That preference is what makes
+    this hold: a row whose own file states a balance at or after it is already
+    anchored inside that file, so appending a later file adds nothing nearer
+    and changes nothing.
+
+    This is the invariant that lets the parser's hard-coded anchor be deleted.
+    The constant used to buy stability by naming one date and one hand-verified
+    figure, which had to be re-verified by hand whenever the history was
+    re-exported; the anchor is now read out of the export, and stability comes
+    from where it is read rather than from it never moving.
     """
 
-    @pytest.fixture
-    def v1_only_frame(self):
-        bank = Golden1(
-            BankSource(
-                name='Golden1',
-                budget_map_yaml=BUDGET_MAP_YAML,
-                accounts={
-                    'CreditCard': [
-                        ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
-                    ]
-                },
-            )
-        )
-        return bank.account_data['CreditCard']
-
-    @pytest.fixture
-    def v1_plus_v2_frame(self):
-        bank = Golden1(
-            BankSource(
-                name='Golden1',
-                budget_map_yaml=BUDGET_MAP_YAML,
-                accounts={
-                    'CreditCard': [
-                        ('2024.csv', _fixture_text('CreditCard', '2024.csv')),
-                        ('2026.csv', _fixture_text('CreditCard', '2026.csv')),
-                    ]
-                },
-            )
-        )
-        return bank.account_data['CreditCard']
-
-    def test_pre_2026_balances_are_identical_with_and_without_the_2026_file(
-        self, v1_only_frame, v1_plus_v2_frame
-    ):
-        v1_row_count = len(v1_only_frame)
-        pre_2026 = v1_plus_v2_frame.iloc[:v1_row_count]
-
-        assert v1_row_count == 7
-        assert (pre_2026['DateSK'] < 20260101).all()
-        assert v1_only_frame['Balance'].tolist() == pre_2026['Balance'].tolist()
-
-    def test_anchor_date_absent_resolves_to_nearest_earlier_date_at_the_anchor_value(
-        self, v1_only_frame
-    ):
-        """`CreditCard/2024.csv` has no `2025-07-12` row (the anchor date),
-        so `_fix_intraday_balance` falls back to the nearest earlier date
-        present - here, the file's own last row - whose Balance must equal
-        the anchor value exactly.
+    def test_a_deposit_accounts_stated_balances_survive_a_later_file(self):
+        """The strong case: v1 states a balance on every row, so every one of
+        them is copied through and none can move, whatever is appended.
         """
-        anchor_date, anchor_balance = CREDIT_CARD_BALANCE_ANCHOR
-        assert pd.Timestamp(anchor_date) not in pd.to_datetime(v1_only_frame['Date'])
-        assert v1_only_frame['Balance'].iloc[-1] == anchor_balance
+        v1_only = _account_frame('FreeChecking', ('2024.csv',))
+        v1_plus_v2 = _account_frame('FreeChecking', ('2024.csv', '2026.csv'))
+
+        pre_2026 = v1_plus_v2.iloc[: len(v1_only)]
+        assert (pre_2026['DateSK'] < 20260101).all()
+        assert v1_only['Balance'].tolist() == pre_2026['Balance'].tolist()
+
+    def test_a_reconstructed_balance_is_continuous_across_the_file_boundary(self):
+        """The credit card's v1 rows are reconstructed and its v2 rows stated,
+        so the join between the two files is where a re-anchoring error would
+        show up as a step no transaction accounts for.
+        """
+        frame = _account_frame('CreditCard', ('2024.csv', '2026.csv'))
+        money = (frame['Debit'].fillna(0) + frame['Credit'].fillna(0)).round(2)
+        steps = frame['Balance'].diff().iloc[1:].round(2)
+
+        assert (steps - money.iloc[1:]).abs().max() < 0.005
+
+
+class TestAnAccountThatStatesNoBalanceAtAll:
+    """v1's credit card exports a literal zero on every row.
+
+    `_to_canonical_signs` turns those into NULL, so an account holding only v1
+    card files has no absolute reference anywhere. Its balances are then a
+    running total from zero - correct relative to each other, arbitrary in
+    absolute terms - and the parser says so on stdout rather than presenting a
+    number it cannot source.
+    """
+
+    def test_balances_are_a_relative_running_total_and_the_reader_is_told(self, capsys):
+        frame = _account_frame('CreditCard', ('2024.csv',))
+        money = (frame['Debit'].fillna(0) + frame['Credit'].fillna(0)).round(2)
+
+        assert frame['Balance'].tolist() == money.cumsum().round(2).tolist()
+        assert 'no balance is stated' in capsys.readouterr().out
 
 
 class TestRejectUndeclaredSchemasRunsBeforeAnyFrameIsBuilt:
@@ -327,9 +332,9 @@ class TestRejectUndeclaredSchemasRunsBeforeAnyFrameIsBuilt:
         calls: list[str] = []
         original_normalize_file = golden1_module._normalize_file
 
-        def spy(csv_text, *, where):
+        def spy(csv_text, *, account, where):
             calls.append(where)
-            return original_normalize_file(csv_text, where=where)
+            return original_normalize_file(csv_text, account=account, where=where)
 
         monkeypatch.setattr(golden1_module, '_normalize_file', spy)
 

@@ -11,6 +11,15 @@ Adding a third version is ONE more entry in `GOLDEN1_CSV_SCHEMAS`. No branch is
 added anywhere: an unrecognized header raises rather than being guessed at, so a
 new export forces a declaration instead of silently losing a column.
 
+`ACCOUNT_CONVENTIONS` declares the other half of what a file means: not where a
+column is, but which way its numbers point. Golden1 signs its pre-2026 credit
+card from the ISSUER's side - a purchase is positive, because it increases what
+you owe - and everything else from the account holder's. That cannot be keyed by
+version, because v1's header is byte-identical across all four accounts, so it
+is keyed by (version, account) with a default. Getting this wrong is worse than
+getting a column wrong: a missing column is visibly NULL, while an inverted sign
+is a plausible number pointing the wrong way.
+
 This module holds no pandas: the table is pure data, so it can be read and
 tested without a DataFrame. All parsing mechanics live in `golden1.py`.
 
@@ -30,15 +39,21 @@ versioning - not before.
 """
 
 __all__ = [
+    'ACCOUNT_CONVENTIONS',
+    'DEFAULT_CONVENTION',
     'GOLDEN1_CSV_SCHEMAS',
     'LEGACY_COLUMNS',
     'Absent',
+    'AccountConvention',
     'AmbiguousCsvSchemaError',
+    'BalanceMeaning',
     'ColumnSource',
     'Derived',
     'Golden1CsvSchema',
+    'MoneySign',
     'RowOrder',
     'UnknownCsvSchemaError',
+    'convention_for',
     'detect_schema',
     'normalize_header_name',
     'sniff_header',
@@ -210,6 +225,88 @@ GOLDEN1_CSV_SCHEMAS: tuple[Golden1CsvSchema, ...] = (
         row_order='descending',
     ),
 )
+
+
+class MoneySign(Enum):
+    """Whose side of the ledger the `Debit`/`Credit` cells are written from.
+
+    `CASH_FLOW` is the account holder's: money leaving is negative. Every
+    Golden1 export uses it except one.
+
+    `CARD_LEDGER` is the issuer's: a purchase is POSITIVE, because it increases
+    what you owe. Only the v1 credit card is written this way, and normalizing
+    it is the whole reason this enum exists - a $50 purchase must not net to
+    -50 on checking and +50 on the card.
+    """
+
+    CASH_FLOW = auto()
+    CARD_LEDGER = auto()
+
+
+class BalanceMeaning(Enum):
+    """What a positive number in the balance column means, if anything.
+
+    `ASSET` is money held; `DEBT` is money owed, so it must be negated to
+    become a signed contribution to net worth. The distinction is not
+    cosmetic: `silver_Golden1_DailyBalances` sums all four accounts into one
+    `TotalBalance`, and a debt carrying the export's own sign would be ADDED to
+    net worth.
+
+    `UNSTATED` is a column that exists and says nothing - the v1 credit card
+    exports a `Balance` of literal zero on every row. It is a third case rather
+    than a NULL because the cells are populated: only a declaration can
+    distinguish "the balance is zero" from "the bank did not fill this in", and
+    reading the zeros as a balance is what a running total would silently do.
+    """
+
+    ASSET = auto()
+    DEBT = auto()
+    UNSTATED = auto()
+
+
+@dataclass(frozen=True, slots=True)
+class AccountConvention:
+    """How one (schema version, account) states its money and its balance.
+
+    The two axes move independently, which is the fact that makes this a pair
+    rather than a single flag: the v2 credit card signs money from the
+    cardholder's side and its balance from the issuer's, in the same file.
+    """
+
+    money: MoneySign
+    balance: BalanceMeaning
+
+
+#: What an account states unless it is named in `ACCOUNT_CONVENTIONS` below:
+#: money as cash flow, balance as an asset. Every deposit account in every
+#: version Golden1 has exported, and the safe reading for an account this
+#: module has not seen - a new checking-like account is normalized correctly
+#: without being declared, and only a credit-like one needs an entry.
+DEFAULT_CONVENTION = AccountConvention(MoneySign.CASH_FLOW, BalanceMeaning.ASSET)
+
+#: The exceptions, keyed by (schema version, account name).
+#:
+#: Keyed by BOTH because neither alone identifies a convention. The version
+#: cannot: v1's header is byte-identical across all four accounts, so
+#: `detect_schema` returns 'golden1.v1' for the credit card and for checking
+#: alike, while only the card is written from the issuer's side. The account
+#: cannot either: the card changed its money convention between v1 and v2 while
+#: keeping its balance convention, which is exactly the pair below.
+ACCOUNT_CONVENTIONS: Mapping[tuple[str, str], AccountConvention] = MappingProxyType(
+    {
+        ('golden1.v1', 'CreditCard'): AccountConvention(
+            money=MoneySign.CARD_LEDGER, balance=BalanceMeaning.UNSTATED
+        ),
+        ('golden1.v2', 'CreditCard'): AccountConvention(
+            money=MoneySign.CASH_FLOW, balance=BalanceMeaning.DEBT
+        ),
+    }
+)
+
+
+def convention_for(version: str, account: str) -> AccountConvention:
+    """How `account` states money and balance under schema `version`."""
+    return ACCOUNT_CONVENTIONS.get((version, account), DEFAULT_CONVENTION)
 
 
 def normalize_header_name(name: str) -> str:
