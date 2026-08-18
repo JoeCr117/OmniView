@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import type { BreakdownRow } from "@/apps/expense-tracker/lib/api";
 import {
@@ -10,13 +10,13 @@ import {
   type Dimension,
 } from "@/apps/expense-tracker/lib/breakdown";
 import {
-  INITIAL_DRILL,
   currentDimension,
   drillFilter,
   drillInto,
   drillTitle,
   type DrillState,
 } from "@/apps/expense-tracker/lib/drill";
+import type { PieView } from "@/apps/expense-tracker/lib/breakdownView";
 import { formatUsdWhole } from "@/apps/expense-tracker/lib/money";
 import { DrillToolbar } from "@/apps/expense-tracker/components/DrillToolbar";
 import { LazyCategoryPieChart } from "@/components/charts/LazyCategoryPieChart";
@@ -30,15 +30,20 @@ import { LazyCategoryPieChart } from "@/components/charts/LazyCategoryPieChart";
  */
 export function BreakdownPie({
   rows,
+  view,
+  onViewChange,
   highlightKeys,
   onSelect,
 }: {
   rows: readonly BreakdownRow[];
+  /** Drill position and drill mode, owned by the page so Restart can clear them. */
+  view: PieView;
+  onViewChange: (next: PieView) => void;
   highlightKeys?: readonly string[];
   onSelect?: (criterion: { dim: Dimension; key: string }, extend: boolean) => void;
 }) {
-  const [drill, setDrill] = useState<DrillState>(INITIAL_DRILL);
-  const [drillMode, setDrillMode] = useState(false);
+  const { drill, drillMode } = view;
+  const setDrill = (next: DrillState) => onViewChange({ ...view, drill: next });
 
   const dim = currentDimension(drill, CATEGORY_HIERARCHY);
 
@@ -68,7 +73,7 @@ export function BreakdownPie({
         hierarchy={CATEGORY_HIERARCHY}
         onDrill={setDrill}
         drillMode={drillMode}
-        onDrillModeChange={setDrillMode}
+        onDrillModeChange={(next) => onViewChange({ ...view, drillMode: next })}
         status={drillMode ? "Click a slice to drill into it." : undefined}
       />
       <div className="min-h-0 flex-1">

@@ -1,19 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import type { BreakdownRow } from "@/apps/expense-tracker/lib/api";
 import {
-  CATEGORY_HIERARCHY,
-  DATE_HIERARCHY,
+  AXIS_HIERARCHIES,
+  AXIS_LABELS,
   DIMENSION_TITLES,
   WATERFALL_TOTAL_KEY,
   filterRows,
   waterfall,
+  type Axis,
   type Dimension,
 } from "@/apps/expense-tracker/lib/breakdown";
+import type { WaterfallView } from "@/apps/expense-tracker/lib/breakdownView";
 import {
-  INITIAL_DRILL,
   currentDimension,
   drillFilter,
   drillInto,
@@ -35,32 +36,23 @@ import { Button } from "@/components/ui/button";
  * year was drilled into and filtered; "by Month" means the level was skipped.
  */
 
-type Axis = "date" | "category";
-
-const HIERARCHIES: Record<Axis, readonly Dimension[]> = {
-  date: DATE_HIERARCHY,
-  category: CATEGORY_HIERARCHY,
-};
-
-const AXIS_LABELS: Record<Axis, string> = { date: "Date", category: "Category" };
-
 export function BreakdownWaterfall({
   rows,
+  view,
+  onViewChange,
   highlightKeys,
   onSelect,
 }: {
   rows: readonly BreakdownRow[];
+  /** Axis, per-axis drill position and drill mode, all owned by the page. */
+  view: WaterfallView;
+  onViewChange: (next: WaterfallView) => void;
   highlightKeys?: readonly string[];
   onSelect?: (criterion: { dim: Dimension; key: string }, extend: boolean) => void;
 }) {
-  const [axis, setAxis] = useState<Axis>("date");
-  const [drills, setDrills] = useState<Record<Axis, DrillState>>({
-    date: INITIAL_DRILL,
-    category: INITIAL_DRILL,
-  });
-  const [drillMode, setDrillMode] = useState(false);
+  const { axis, drills, drillMode } = view;
 
-  const hierarchy = HIERARCHIES[axis];
+  const hierarchy = AXIS_HIERARCHIES[axis];
   const drill = drills[axis];
   const dim = currentDimension(drill, hierarchy);
 
@@ -70,7 +62,7 @@ export function BreakdownWaterfall({
   }, [rows, drill, dim]);
 
   function setDrill(next: DrillState) {
-    setDrills((current) => ({ ...current, [axis]: next }));
+    onViewChange({ ...view, drills: { ...drills, [axis]: next } });
   }
 
   function handleSelect(key: string, extend: boolean) {
@@ -91,13 +83,13 @@ export function BreakdownWaterfall({
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold">{drillTitle("Transactions", drill, hierarchy)}</h2>
         <div className="flex gap-1">
-          {(Object.keys(HIERARCHIES) as Axis[]).map((option) => (
+          {(Object.keys(AXIS_HIERARCHIES) as Axis[]).map((option) => (
             <Button
               key={option}
               size="xs"
               variant={axis === option ? "secondary" : "ghost"}
               aria-pressed={axis === option}
-              onClick={() => setAxis(option)}
+              onClick={() => onViewChange({ ...view, axis: option })}
             >
               {AXIS_LABELS[option]}
             </Button>
@@ -110,7 +102,7 @@ export function BreakdownWaterfall({
         hierarchy={hierarchy}
         onDrill={setDrill}
         drillMode={drillMode}
-        onDrillModeChange={setDrillMode}
+        onDrillModeChange={(next) => onViewChange({ ...view, drillMode: next })}
         status={drillMode ? "Click a bar to drill into it." : undefined}
       />
 

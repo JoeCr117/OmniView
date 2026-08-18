@@ -99,6 +99,78 @@ test("clicking a pie slice filters the matrix, and Restart puts it back", async 
   await expect(page.locator(".tabulator")).toContainText("$1,093.00");
 });
 
+test("ctrl-clicking an account header cross-filters, and sorting still works", async ({ page }) => {
+  await logIn(page, BREAKDOWN);
+  await expect(page.locator(".tabulator").first()).toBeVisible();
+
+  const header = page.locator('.tabulator-col[tabulator-field="values.CreditCard"]');
+  const restart = page.getByRole("button", { name: /Restart/ });
+
+  // A PLAIN click sorts and must not filter: Tabulator owns that gesture, which
+  // is why the cross-filter hangs on a modifier. `headerSortClickElement:
+  // "icon"` moves the sort onto the arrow so the two never both fire.
+  await header.locator(".tabulator-col-sorter").click();
+  await expect(restart).toBeDisabled();
+
+  await header.locator(".tabulator-col-title").click({ modifiers: ["Control"] });
+
+  await expect(restart).toBeEnabled();
+  await expect(header).toHaveClass(/matrix-selected/);
+  await expect(page.getByText(/Filtered by/)).toContainText("CreditCard");
+});
+
+test("selections from two visuals compose, and Restart clears both", async ({ page }) => {
+  await logIn(page, BREAKDOWN);
+  await expect(page.locator(".tabulator").first()).toBeVisible();
+
+  const restart = page.getByRole("button", { name: /Restart/ });
+  const chip = page.getByText(/Filtered by/);
+
+  await page
+    .locator('.tabulator-col[tabulator-field="values.CreditCard"] .tabulator-col-title')
+    .click({ modifiers: ["Control"] });
+  await expect(chip).toContainText("CreditCard");
+
+  // Ctrl extends ACROSS visuals - the reference report's compound selection.
+  // A plain click here would replace the matrix's selection instead.
+  await page
+    .locator(".recharts-bar-rectangle")
+    .first()
+    .dispatchEvent("click", { ctrlKey: true });
+
+  await expect(chip).toContainText("CreditCard");
+  await expect(chip).toContainText("2024");
+
+  await restart.click();
+
+  await expect(restart).toBeDisabled();
+  await expect(chip).toHaveCount(0);
+  await expect(
+    page.locator('.tabulator-col[tabulator-field="values.CreditCard"]'),
+  ).not.toHaveClass(/matrix-selected/);
+});
+
+test("Restart enables on a drill that filters nothing, and undoes it", async ({ page }) => {
+  await logIn(page, BREAKDOWN);
+  await expect(page.locator(".tabulator").first()).toBeVisible();
+
+  const restart = page.getByRole("button", { name: /Restart/ });
+  await expect(restart).toBeDisabled();
+
+  // "Next level" descends without filtering, so nothing about the DATA changes
+  // - which is exactly the case the old Restart could not see, because drill
+  // state lived inside the visual rather than on the page.
+  await page.getByRole("button", { name: /next level/i }).first().click();
+  await expect(page.locator(".tabulator")).toContainText("Label");
+
+  await expect(restart).toBeEnabled();
+
+  await restart.click();
+
+  await expect(restart).toBeDisabled();
+  await expect(page.locator(".tabulator")).toContainText("CalendarDate");
+});
+
 test("the page fits its pane without a horizontal scrollbar", async ({ page }) => {
   await logIn(page, BREAKDOWN);
   await expect(page.locator(".tabulator").first()).toBeVisible();

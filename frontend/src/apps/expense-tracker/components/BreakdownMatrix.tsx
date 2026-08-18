@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronsDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { ColumnDefinition } from "tabulator-tables";
 
 import type { BreakdownRow } from "@/apps/expense-tracker/lib/api";
@@ -13,7 +13,13 @@ import {
   pivot,
   type Dimension,
 } from "@/apps/expense-tracker/lib/breakdown";
-import { INITIAL_DRILL, drillFilter, drillInto, drillLevel } from "@/apps/expense-tracker/lib/drill";
+import {
+  drillFilter,
+  drillInto,
+  drillLevel,
+  type DrillState,
+} from "@/apps/expense-tracker/lib/drill";
+import type { MatrixView } from "@/apps/expense-tracker/lib/breakdownView";
 import { txn } from "@/apps/expense-tracker/lib/money";
 import { DrillToolbar, ToolbarButton } from "@/apps/expense-tracker/components/DrillToolbar";
 import { DataTable } from "@/components/common/DataTable";
@@ -32,15 +38,22 @@ import { DataTable } from "@/components/common/DataTable";
  */
 export function BreakdownMatrix({
   rows,
+  view,
+  onViewChange,
+  selectedAccounts,
   onSelect,
 }: {
   rows: readonly BreakdownRow[];
-  /** A row click that is not a drill reports the row as a cross-filter criterion. */
+  /** Drill position and toggles, owned by the page so Restart can clear them. */
+  view: MatrixView;
+  onViewChange: (next: MatrixView) => void;
+  /** Account columns the reader has cross-filtered on; their headers are marked. */
+  selectedAccounts?: readonly string[];
+  /** Ctrl/⌘-clicking an account column header reports it as a cross-filter criterion. */
   onSelect?: (criterion: { dim: Dimension; key: string }, extend: boolean) => void;
 }) {
-  const [drill, setDrill] = useState(INITIAL_DRILL);
-  const [drillMode, setDrillMode] = useState(false);
-  const [expandAll, setExpandAll] = useState(false);
+  const { drill, drillMode, expandAll } = view;
+  const setDrill = (next: DrillState) => onViewChange({ ...view, drill: next });
 
   const scoped = useMemo(() => filterRows(rows, drillFilter(drill)), [rows, drill]);
   const dims = useMemo(() => MATRIX_HIERARCHY.slice(drillLevel(drill)), [drill]);
@@ -48,15 +61,41 @@ export function BreakdownMatrix({
   const nodes = useMemo(() => pivot(scoped, dims, "accountType"), [scoped, dims]);
   const columns = useMemo(() => matrixColumns(dims, accountTypes), [dims, accountTypes]);
 
-  function handleRowClick(rowData: object, event: UIEvent) {
-    const { key, dim } = rowData as { key?: string; dim?: Dimension };
-    if (key === undefined || dim === undefined) return;
-    if (drillMode) {
-      setDrill((current) => drillInto(current, MATRIX_HIERARCHY, key));
-      return;
-    }
+  const headerClassNames = useMemo(
+    () =>
+      Object.fromEntries(
+        (selectedAccounts ?? []).map((account) => [accountField(account), "matrix-selected"]),
+      ),
+    [selectedAccounts],
+  );
+
+  /**
+   * Rows drill, and nothing else. They used to cross-filter too, on a plain
+   * click; the account column header carries that now, which is where the
+   * source report puts it and which leaves a row click free to mean the one
+   * thing a tree row should mean.
+   */
+  function handleRowClick(rowData: object) {
+    const { key } = rowData as { key?: string };
+    if (key === undefined || !drillMode) return;
+    setDrill(drillInto(drill, MATRIX_HIERARCHY, key));
+  }
+
+  /**
+   * Ctrl/⌘ (or shift) is required, because a plain header click is already
+   * spent: Tabulator sorts on it, and sorting an account column is worth
+   * keeping. The modifier is also what the source report used, so a reader
+   * coming from it reaches for the right one.
+   */
+  function handleHeaderClick(field: string, event: UIEvent) {
     const mouse = event as MouseEvent;
-    onSelect?.({ dim, key }, mouse.ctrlKey || mouse.shiftKey || mouse.metaKey);
+    if (!(mouse.ctrlKey || mouse.shiftKey || mouse.metaKey)) return;
+    const account = accountOf(field);
+    if (account === null) return;
+    // Always extending: a modifier click that dropped the other visuals'
+    // selections would make the compound filter unbuildable, since this is the
+    // only gesture the matrix has.
+    onSelect?.({ dim: "accountType", key: account }, true);
   }
 
   return (
@@ -68,7 +107,7 @@ export function BreakdownMatrix({
         hierarchy={MATRIX_HIERARCHY}
         onDrill={setDrill}
         drillMode={drillMode}
-        onDrillModeChange={setDrillMode}
+        onDrillModeChange={(next) => onViewChange({ ...view, drillMode: next })}
         status={drillMode ? "Click a row to drill into it." : `Showing ${nodes.length} rows.`}
       >
         <ToolbarButton
@@ -76,7 +115,7 @@ export function BreakdownMatrix({
           icon={<ChevronsDown />}
           pressed={expandAll}
           disabled={dims.length < 2}
-          onClick={() => setExpandAll(!expandAll)}
+          onClick={() => onViewChange({ ...view, expandAll: !expandAll })}
         />
       </DrillToolbar>
 
@@ -87,9 +126,17 @@ export function BreakdownMatrix({
         className="min-h-0 flex-1"
         placeholder="No transactions in this selection."
         onRowClick={handleRowClick}
+        onHeaderClick={handleHeaderClick}
+        headerClassNames={headerClassNames}
         options={{
           layout: "fitColumns",
           height: "100%",
+          // Sorting moves to the sort arrow so the header text is free for the
+          // cross-filter gesture. Tabulator binds its sort to the whole header
+          // element, and its own source recommends exactly this whenever
+          // something else wants the header click - without it, one Ctrl+click
+          // both filters AND re-sorts, and the re-sort is what the reader sees.
+          headerSortClickElement: "icon",
           dataTree: true,
           dataTreeChildField: "_children",
           dataTreeStartExpanded: expandAll,
@@ -101,6 +148,26 @@ export function BreakdownMatrix({
       />
     </section>
   );
+}
+
+/**
+ * The Tabulator field an account column lives at, and its inverse.
+ *
+ * Written down once, in both directions, because the header click arrives as a
+ * field name and has to become an account again. Two independent string
+ * templates would drift the moment the column layout changed, and the failure
+ * would be a header that silently stops filtering.
+ */
+const ACCOUNT_FIELD_PREFIX = "values.";
+
+function accountField(account: string): string {
+  return `${ACCOUNT_FIELD_PREFIX}${account}`;
+}
+
+function accountOf(field: string): string | null {
+  return field.startsWith(ACCOUNT_FIELD_PREFIX)
+    ? field.slice(ACCOUNT_FIELD_PREFIX.length)
+    : null;
 }
 
 function matrixColumns(
@@ -121,7 +188,7 @@ function matrixColumns(
     },
     ...accountTypes.map((account) => ({
       title: account,
-      field: `values.${account}`,
+      field: accountField(account),
       ...currency,
     })),
     { title: "Total", field: "total", ...currency, cssClass: "matrix-total" },

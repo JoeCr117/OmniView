@@ -50,6 +50,7 @@ All five phases are complete and deployed.
 | 10 | **Objective quality measurement** — measured baselines, ratcheted gates, pre-commit + CI | ✅ complete (2026-08-15), not yet deployed — see [Phase 10 detail](#phase-10--objective-quality-measurement) |
 | 11 | **ExpenseTracker Breakdown** — the legacy Power BI matrix/waterfall/pie page, rebuilt in-app | ✅ complete (2026-08-17), not yet deployed — see [Phase 11 detail](#phase-11--expensetracker-breakdown) |
 | 12 | **Golden1 v2 sign inversion** — 2026 card purchases reported as income; sign now declared per (version, account) and normalized in the parser | ✅ complete (2026-08-17), not yet deployed — see [Phase 12 detail](#phase-12--the-golden1-v2-sign-inversion) |
+| 13 | **Breakdown cross-filtering + Restart** — selections from two visuals now compose; Restart is a real bookmark of the default view | ✅ complete (2026-08-17), not yet deployed — see [Phase 13 detail](#phase-13--compound-cross-filtering-and-a-restart-that-restarts) |
 
 ---
 
@@ -1198,6 +1199,63 @@ subcategories — a BudgetMap data issue, documented above, unrelated to this wo
 **Out of scope, logged.** v2 adds a bank-assigned `Category` column (36 values, e.g.
 `Food & Drink/Dining Out`) that the parser still drops. Mapping it needs a precedence rule against
 the BudgetMap and belongs to its own decision.
+
+---
+
+## Phase 13 — compound cross-filtering, and a Restart that restarts
+
+Two defects against `Breakdown Dashboard 15.png`, the source report's own screenshot.
+
+**1. Cross-filters did not compose.** `Selection` held a single `source`, and `applyClick` discarded
+the existing selection whenever the click came from a different visual — so the second click replaced
+the first instead of refining it. The reference shows `CreditCard` (matrix) and `2024` (waterfall)
+applied together, with the pie reduced by both. The matrix also cross-filtered from a **row** click;
+the reference uses the **account column header**.
+
+**2. Restart was blind to drill state.** Its enabled test checked three pieces of page state while
+**eight more lived inside the visuals** as `useState` — the matrix's drill/drillMode/expandAll, the
+waterfall's axis/drills/drillMode, the pie's drill/drillMode. Drilling therefore left the button
+disabled, and pressing it never undid a drill. The legacy control was a Power BI bookmark of the
+default view.
+
+### What changed
+
+- **`CrossFilter` is keyed by visual**, not by one source: `Partial<Record<VisualId, Criterion[]>>`.
+  Selections intersect, and `rowsFor` exempts a visual from its *own* entry and no other — so
+  composing never leaves a visual unable to show the whole, which was the reason for the single
+  source in the first place.
+- **The matrix cross-filters from its account column header on Ctrl/⌘+click**; rows now only drill
+  and expand. `DataTable` gained `onHeaderClick` and `headerClassNames`, both wired through refs so
+  neither remounts Tabulator.
+- **All view state lifted to the page** as one `BreakdownView` (`lib/breakdownView.ts`). The three
+  visuals are controlled. `isDefaultView` and Restart are both derived from `INITIAL_VIEW`, so a
+  future piece of view state cannot be half-wired — it either goes in the type and both behaviours
+  pick it up, or it does not exist.
+
+### Two things that only showed up in the browser
+
+**Ctrl+click both filtered *and* re-sorted.** Tabulator binds its sort to the whole header element,
+so one gesture fired both, and the re-sort (blank cells to the top) was what the reader saw. Fixed
+with `headerSortClickElement: "icon"` — Tabulator's own source recommends exactly this whenever
+something else wants the header click. Sorting moves to the sort arrow.
+
+**The selected-header style never applied.** `.tabulator .tabulator-col.matrix-selected` ties on
+specificity with Tabulator's `.tabulator .tabulator-header .tabulator-col`, and lost on source order.
+The selector now includes `.tabulator-header` to outrank it. Worth knowing: the pre-existing
+`matrix-total` rule has the same problem and only ever styled cells, never its header.
+
+### Verified
+
+Reproduced the reference: Ctrl+click `CreditCard`, then Ctrl+click the `2024` bar → chip reads
+**"Filtered by CreditCard, 2024"**, matrix scoped to 2024 with every account column still present,
+waterfall showing card-only values with 2024 saturated and 2025/2026 dimmed, pie reduced by both.
+The image's own oracle holds: the waterfall's 2024 bar (**$1,538.17**) equals the matrix's
+`CreditCard` column total. Restart then clears everything and disables itself.
+
+Restart now enables on — and clears — every previously invisible piece of state: next-level drill,
+expand-all, drill mode, and the waterfall's axis toggle.
+
+Suites: Vitest **523** passed (49 files) · Playwright **47** passed · `uv run pytest` **543** passed.
 
 ---
 

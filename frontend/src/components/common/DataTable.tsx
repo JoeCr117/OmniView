@@ -21,6 +21,8 @@ export function DataTable({
   columns,
   options,
   onRowClick,
+  onHeaderClick,
+  headerClassNames,
   className,
   placeholder = "No rows to show.",
 }: {
@@ -41,14 +43,38 @@ export function DataTable({
    * comes with it, because modifier-clicks mean something to some callers.
    */
   onRowClick?: (rowData: object, event: UIEvent) => void;
+  /**
+   * Column-header clicks, if the grid wants them. Registered through a ref for
+   * the same reason as `onRowClick`, and carrying the event for the same
+   * reason: Tabulator spends the PLAIN header click on sorting, so a caller
+   * that wants a second meaning has to hang it on a modifier and needs to see
+   * which one was held.
+   */
+  onHeaderClick?: (field: string, event: UIEvent) => void;
+  /**
+   * Extra classes per column, keyed by field - e.g. marking a header the reader
+   * has selected.
+   *
+   * A prop rather than `cssClass` on the column definition because the column
+   * definitions are only read at build: changing one means remounting the grid,
+   * which costs the sort and scroll position this component exists to preserve.
+   * Applied by touching the header element instead, which is also why it lives
+   * here rather than in a caller - it is the one place that already owns
+   * Tabulator's DOM.
+   */
+  headerClassNames?: Readonly<Record<string, string>>;
   /** Shown by Tabulator when `data` is empty - every grid should say *something*. */
   placeholder?: string;
 }) {
   const holderRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<TabulatorFull | null>(null);
   const rowClickRef = useRef(onRowClick);
+  const headerClickRef = useRef(onHeaderClick);
+  const headerClassNamesRef = useRef(headerClassNames);
   useEffect(() => {
     rowClickRef.current = onRowClick;
+    headerClickRef.current = onHeaderClick;
+    headerClassNamesRef.current = headerClassNames;
   });
   // Tabulator initializes asynchronously - calling setData before its
   // "tableBuilt" event fires corrupts internal layout state (Tabulator logs
@@ -81,8 +107,15 @@ export function DataTable({
           table.setData(pendingDataRef.current);
           pendingDataRef.current = null;
         }
+        // Header classes are flushed here for the same reason data is: this
+        // event does not re-render, so the effect below cannot observe it and
+        // would leave classes asked for before the build unapplied.
+        syncHeaderClasses(table, headerClassNamesRef.current);
       });
       table.on("rowClick", (event, row) => rowClickRef.current?.(row.getData(), event));
+      table.on("headerClick", (event, column) =>
+        headerClickRef.current?.(column.getField(), event),
+      );
       tableRef.current = table;
     });
 
@@ -113,5 +146,42 @@ export function DataTable({
     }
   }, [data]);
 
+  useEffect(() => {
+    // Once built, changes flow through here; before that, the tableBuilt
+    // handler above does the first pass.
+    if (tableRef.current && builtRef.current) {
+      syncHeaderClasses(tableRef.current, headerClassNames);
+    }
+  }, [headerClassNames]);
+
   return <div ref={holderRef} className={className} />;
+}
+
+/**
+ * Put each column's wanted class on its header element, and take off the one
+ * this function put there last.
+ *
+ * Tracking what it applied - rather than clearing the class list - is what lets
+ * it share the element with Tabulator, which writes its own classes there for
+ * sort direction and layout. `undefined` means the caller does not use the
+ * prop, so nothing is touched at all.
+ */
+function syncHeaderClasses(
+  table: TabulatorFull,
+  wanted: Readonly<Record<string, string>> | undefined,
+): void {
+  if (wanted === undefined) return;
+  for (const column of table.getColumns()) {
+    const element = column.getElement();
+    const next = wanted[column.getField()];
+    const applied = element.dataset.dataTableHeaderClass;
+    if (applied === next) continue;
+    if (applied) element.classList.remove(applied);
+    if (next) {
+      element.classList.add(next);
+      element.dataset.dataTableHeaderClass = next;
+    } else {
+      delete element.dataset.dataTableHeaderClass;
+    }
+  }
 }

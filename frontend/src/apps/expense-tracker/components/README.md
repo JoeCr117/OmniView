@@ -31,10 +31,17 @@ these. Nothing here is cross-app: a component two *apps* need is promoted to
 - `dataTreeChildColumnCalcs` stays **false**: children are already counted in
   their parent's total, and letting them into the footer bills every transaction
   twice.
-- **Drill state belongs to each visual**, as in Power BI — the matrix and the
-  waterfall descend independently, and neither resets when the slicers change.
-  The waterfall keeps one drill state *per axis*, so switching to Category and
-  back does not dump the reader out of the year they were reading.
+- **The three Breakdown visuals are controlled**: drill position, drill mode and
+  the matrix's expand-all all live on the page as one `BreakdownView`. They still
+  descend independently and none resets when the slicers change — the waterfall
+  still keeps one drill state *per axis* — but the page can now see and clear
+  them, which is the only way Restart can work. Keeping them in each component's
+  `useState` is what made drilling invisible to that button.
+- **The matrix cross-filters from its account column header, on Ctrl/⌘+click.**
+  Rows drill and expand; they no longer cross-filter. A plain header click is
+  already spent on sorting, so the grid sets `headerSortClickElement: "icon"` to
+  move sorting onto the arrow — without it one Ctrl+click both filters and
+  re-sorts, and the re-sort is what the reader notices.
 
 ## See also
 - [expense-tracker/](../README.md) · [lib/](../lib/README.md) · [components/common/](../../../components/common/README.md)

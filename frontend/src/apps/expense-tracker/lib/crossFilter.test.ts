@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { BreakdownRow } from "./api";
 import {
+  NO_CROSS_FILTER,
   applyClick,
   describeSelection,
   highlightedKeys,
+  isFiltered,
   matchesSelection,
   rowsFor,
-  type Selection,
+  type CrossFilter,
 } from "./crossFilter";
 
 function row(
@@ -61,82 +63,130 @@ describe("matchesSelection", () => {
 });
 
 describe("rowsFor", () => {
-  const selection: Selection = { source: "pie", criteria: [{ dim: "category", key: "Food" }] };
+  const fromPie: CrossFilter = { pie: [{ dim: "category", key: "Food" }] };
 
   it("filters the visuals that did not make the selection", () => {
-    expect(rowsFor(ROWS, selection, "matrix")).toHaveLength(2);
-    expect(rowsFor(ROWS, selection, "waterfall")).toHaveLength(2);
+    expect(rowsFor(ROWS, fromPie, "matrix")).toHaveLength(2);
+    expect(rowsFor(ROWS, fromPie, "waterfall")).toHaveLength(2);
   });
 
   it("leaves the source visual whole, so it does not collapse to one slice", () => {
-    expect(rowsFor(ROWS, selection, "pie")).toHaveLength(ROWS.length);
+    expect(rowsFor(ROWS, fromPie, "pie")).toHaveLength(ROWS.length);
   });
 
   it("is a no-op with no selection", () => {
-    expect(rowsFor(ROWS, null, "matrix")).toBe(ROWS);
+    expect(rowsFor(ROWS, NO_CROSS_FILTER, "matrix")).toBe(ROWS);
+  });
+
+  describe("with two visuals selected", () => {
+    // The reference report's compound case: an account from the matrix, a year
+    // from the waterfall, and the pie reduced by both.
+    const compound: CrossFilter = {
+      matrix: [{ dim: "accountType", key: "CreditCard" }],
+      waterfall: [{ dim: "year", key: "2025" }],
+    };
+    const MIXED: BreakdownRow[] = [
+      row("2024-01-01", "Food", "CreditCard"),
+      row("2025-01-01", "Food", "CreditCard"),
+      row("2025-02-01", "Rent", "FreeChecking"),
+      row("2024-03-01", "Travel", "FreeChecking"),
+    ];
+
+    it("intersects them for a visual that made neither", () => {
+      const seen = rowsFor(MIXED, compound, "pie");
+      expect(seen).toHaveLength(1);
+      expect(seen[0].calendar_date).toBe("2025-01-01");
+    });
+
+    it("exempts a visual from its OWN entry only, never from the other's", () => {
+      // The matrix keeps every account (its own selection) but still loses the
+      // years the waterfall excluded.
+      const seen = rowsFor(MIXED, compound, "matrix");
+      expect(seen.map((r) => r.account_type)).toEqual(["CreditCard", "FreeChecking"]);
+      expect(seen.every((r) => r.calendar_date.startsWith("2025"))).toBe(true);
+    });
   });
 });
 
 describe("highlightedKeys", () => {
-  const selection: Selection = { source: "waterfall", criteria: [{ dim: "year", key: "2025" }] };
+  const filter: CrossFilter = { waterfall: [{ dim: "year", key: "2025" }] };
 
   it("dims only in the visual that made the selection", () => {
-    expect(highlightedKeys(selection, "waterfall")).toEqual(["2025"]);
+    expect(highlightedKeys(filter, "waterfall")).toEqual(["2025"]);
   });
 
   it("dims nothing elsewhere, because everything left there is in the selection", () => {
-    expect(highlightedKeys(selection, "pie")).toEqual([]);
-    expect(highlightedKeys(null, "waterfall")).toEqual([]);
+    expect(highlightedKeys(filter, "pie")).toEqual([]);
+    expect(highlightedKeys(NO_CROSS_FILTER, "waterfall")).toEqual([]);
   });
 });
 
 describe("applyClick", () => {
   const food = { dim: "category", key: "Food" } as const;
   const rent = { dim: "category", key: "Rent" } as const;
+  const card = { dim: "accountType", key: "CreditCard" } as const;
 
   it("selects a mark", () => {
-    expect(applyClick(null, "pie", food)).toEqual({ source: "pie", criteria: [food] });
+    expect(applyClick(NO_CROSS_FILTER, "pie", food)).toEqual({ pie: [food] });
   });
 
   it("clears when the selected mark is clicked again", () => {
-    const current: Selection = { source: "pie", criteria: [food] };
-    expect(applyClick(current, "pie", food)).toBeNull();
+    expect(applyClick({ pie: [food] }, "pie", food)).toEqual(NO_CROSS_FILTER);
   });
 
   it("replaces the selection on a plain click elsewhere in the same visual", () => {
-    const current: Selection = { source: "pie", criteria: [food] };
-    expect(applyClick(current, "pie", rent)).toEqual({ source: "pie", criteria: [rent] });
+    expect(applyClick({ pie: [food] }, "pie", rent)).toEqual({ pie: [rent] });
   });
 
   it("extends with ctrl/shift", () => {
-    const current: Selection = { source: "pie", criteria: [food] };
-    expect(applyClick(current, "pie", rent, true)).toEqual({
-      source: "pie",
-      criteria: [food, rent],
-    });
+    expect(applyClick({ pie: [food] }, "pie", rent, true)).toEqual({ pie: [food, rent] });
   });
 
   it("removes a value from a multi-selection by extending onto it again", () => {
-    const current: Selection = { source: "pie", criteria: [food, rent] };
-    expect(applyClick(current, "pie", rent, true)).toEqual({ source: "pie", criteria: [food] });
+    expect(applyClick({ pie: [food, rent] }, "pie", rent, true)).toEqual({ pie: [food] });
   });
 
-  it("clears when the last value of a multi-selection is removed", () => {
-    const current: Selection = { source: "pie", criteria: [food] };
-    expect(applyClick(current, "pie", food, true)).toBeNull();
+  it("drops a visual's entry entirely when its last value is removed", () => {
+    expect(applyClick({ pie: [food] }, "pie", food, true)).toEqual(NO_CROSS_FILTER);
   });
 
-  it("starts fresh when the click comes from a different visual", () => {
-    const current: Selection = { source: "pie", criteria: [food] };
-    expect(applyClick(current, "waterfall", rent, true)).toEqual({
-      source: "waterfall",
-      criteria: [rent],
+  it("keeps the other visual's selection when extending into a new one", () => {
+    // The gesture the reference image is built on: matrix, then ctrl-click the
+    // waterfall, and both apply.
+    expect(applyClick({ matrix: [card] }, "waterfall", food, true)).toEqual({
+      matrix: [card],
+      waterfall: [food],
     });
   });
 
+  it("drops the other visual's selection on a PLAIN click, so one click resets to one filter", () => {
+    expect(applyClick({ matrix: [card] }, "waterfall", food)).toEqual({ waterfall: [food] });
+  });
+
+  it("removing one visual's last value leaves the other visual selected", () => {
+    const current: CrossFilter = { matrix: [card], waterfall: [food] };
+    expect(applyClick(current, "waterfall", food, true)).toEqual({ matrix: [card] });
+  });
+
   it("clears on a null criterion, which is how a visual reports empty space", () => {
-    const current: Selection = { source: "pie", criteria: [food] };
-    expect(applyClick(current, "pie", null)).toBeNull();
+    expect(applyClick({ pie: [food] }, "pie", null)).toEqual(NO_CROSS_FILTER);
+  });
+
+  it("does not mutate the filter it was given", () => {
+    const current: CrossFilter = { matrix: [card] };
+    applyClick(current, "waterfall", food, true);
+    expect(current).toEqual({ matrix: [card] });
+  });
+});
+
+describe("isFiltered", () => {
+  it("is false for no selection, and for an emptied one", () => {
+    expect(isFiltered(NO_CROSS_FILTER)).toBe(false);
+    expect(isFiltered({ pie: [] })).toBe(false);
+  });
+
+  it("is true once any visual holds a selection", () => {
+    expect(isFiltered({ pie: [{ dim: "category", key: "Food" }] })).toBe(true);
   });
 });
 
@@ -144,8 +194,7 @@ describe("describeSelection", () => {
   it("names the selected values", () => {
     expect(
       describeSelection({
-        source: "pie",
-        criteria: [
+        pie: [
           { dim: "category", key: "Food" },
           { dim: "category", key: "Rent" },
         ],
@@ -153,7 +202,16 @@ describe("describeSelection", () => {
     ).toBe("Food, Rent");
   });
 
+  it("names values from every visual, so the chip accounts for the whole filter", () => {
+    expect(
+      describeSelection({
+        matrix: [{ dim: "accountType", key: "CreditCard" }],
+        waterfall: [{ dim: "year", key: "2024" }],
+      }),
+    ).toBe("CreditCard, 2024");
+  });
+
   it("says nothing when nothing is selected", () => {
-    expect(describeSelection(null)).toBe("");
+    expect(describeSelection(NO_CROSS_FILTER)).toBe("");
   });
 });

@@ -21,7 +21,8 @@ Breakdown, which is why they are modules rather than page locals.
 | `slicer.ts` | Power BI year/month slicer semantics: empty means all, click-to-clear, shift to extend. |
 | `breakdown.ts` | Grouping, pivoting, waterfall running totals and pie shares — all pure. |
 | `drill.ts` | Where a visual sits in its hierarchy: drill into (filters) vs. next level (does not). |
-| `crossFilter.ts` | Click one visual, reduce the others: OR within a dimension, AND across them. |
+| `crossFilter.ts` | Click one visual, reduce the others: OR within a dimension, AND across them — and AND across visuals, so selections compose. |
+| `breakdownView.ts` | Everything the Breakdown page is showing, as one value, plus the default Restart returns to. |
 | `*.test.ts` | Cover each (upload is tested through the XHR path). |
 
 ## Conventions & gotchas
@@ -32,6 +33,16 @@ Breakdown, which is why they are modules rather than page locals.
   without a DOM, a fixture or a server.
 - Dates are sliced (`date.slice(0, 4)`), never parsed — there is no date library
   here, and a `Date` would drag a timezone into a question that has none.
+- **A `CrossFilter` is keyed by visual, not by one "source".** Each visual holds
+  at most one selection and they intersect, which is what lets an account from
+  the matrix and a year from the waterfall apply together. A visual is exempt
+  from its *own* entry and no other, so composing never leaves one unable to
+  show the whole.
+- **Restart's enabled test and its reset are both derived from `INITIAL_VIEW`.**
+  That is deliberate: the button used to check three pieces of state while eight
+  more lived inside the visuals, so drilling never enabled it. A new piece of
+  view state goes in `BreakdownView` and both behaviours pick it up, or it does
+  not exist.
 
 ## See also
 - [expense-tracker/](../README.md) · [lib/http.ts](../../../lib/README.md) · [lib/useResource.ts](../../../lib/README.md)

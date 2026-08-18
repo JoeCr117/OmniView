@@ -32,6 +32,22 @@ export const DATE_HIERARCHY: readonly Dimension[] = ["year", "month", "day"];
 export const CATEGORY_HIERARCHY: readonly Dimension[] = ["category", "subCategory", "label"];
 export const MATRIX_HIERARCHY: readonly Dimension[] = ["date", "label"];
 
+/**
+ * Which of its two paths the waterfall is drilling.
+ *
+ * Here rather than in the chart component because the page owns the axis now -
+ * Restart has to be able to put it back, and a component-local type would make
+ * the page import from its own child to say so.
+ */
+export type Axis = "date" | "category";
+
+export const AXIS_HIERARCHIES: Record<Axis, readonly Dimension[]> = {
+  date: DATE_HIERARCHY,
+  category: CATEGORY_HIERARCHY,
+};
+
+export const AXIS_LABELS: Record<Axis, string> = { date: "Date", category: "Category" };
+
 /** How a dimension is named in a column header or a chart title. */
 export const DIMENSION_TITLES: Record<Dimension, string> = {
   year: "Year",

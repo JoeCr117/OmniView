@@ -102,6 +102,22 @@
   background: color-mix(in oklch, var(--muted), transparent 35%);
 }
 
+/* Breakdown: an account column header the reader has cross-filtered on. Applied
+   to the header element only (see DataTable's headerClassNames) - marking the
+   cells too would read as "these rows are selected", when what is selected is
+   the column as a filter on the OTHER visuals.
+
+   `.tabulator-header` is in the selector to outrank Tabulator's own
+   `.tabulator .tabulator-header .tabulator-col`, which sets the header
+   background at the same specificity and wins the tie on source order. */
+.tabulator .tabulator-header .tabulator-col.matrix-selected {
+  background: var(--primary);
+}
+.tabulator .tabulator-header .tabulator-col.matrix-selected .tabulator-col-title {
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+
 /* Check Book and Breakdown: Power BI-style year/month slicer strips. */
 .slicer-btn {
   padding: 6px 12px;
