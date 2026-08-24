@@ -2,8 +2,13 @@ from ninja import Router
 from ninja.pagination import LimitOffsetPagination, paginate
 
 from .models import AllTransaction, UncategorizedTransaction
-from .schemas import AllTransactionOut, BudgetAnalysisRow, UncategorizedTransactionOut
-from .services import budget_analysis
+from .schemas import (
+    AllTransactionOut,
+    BreakdownRow,
+    BudgetAnalysisRow,
+    UncategorizedTransactionOut,
+)
+from .services import breakdown_rows, budget_analysis
 
 router = Router()
 
@@ -27,6 +32,11 @@ def list_transactions(
     if account_type:
         qs = qs.filter(account_type=account_type)
     return qs
+
+
+@router.get('/breakdown', response=list[BreakdownRow])
+def get_breakdown(request, start: str | None = None, end: str | None = None):
+    return breakdown_rows(start, end)
 
 
 @router.get('/budget-analysis', response=list[BudgetAnalysisRow])

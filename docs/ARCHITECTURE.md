@@ -201,13 +201,27 @@ the registry is missing something — extend `appspec.py` instead.
 
 ---
 
-**Charts go through `TimeSeriesChart`.** Not because a wrapper is tidy, but because the things that
-make a chart *readable* — both axes titled, the value axis carrying its unit, a crosshair, a tooltip
-naming the underlying row — are exactly the things that get skipped when each page rolls its own.
-`ariaLabel` is required for the same reason: the chart this replaced hardcoded one, and so described
-every chart as a balance chart. Long series are thinned by LTTB (`charts/downsample.ts`), which
-*selects* real rows rather than averaging them, so the crosshair always lands on a real day. Import
-it as `LazyTimeSeriesChart` — Recharts is ~100KB and most pages plot nothing.
+**Charts go through the primitives in `components/charts/`.** Not because a wrapper is tidy, but
+because the things that make a chart *readable* — both axes titled, the value axis carrying its unit,
+a cursor tooltip naming the underlying row — are exactly the things that get skipped when each page
+rolls its own. `ariaLabel` is required on every one of them for the same reason: the chart this
+replaced hardcoded one, and so described every chart as a balance chart. Each is imported through its
+`Lazy*` wrapper — Recharts is ~100KB and most pages plot nothing.
+
+A page picks by what it is *saying*: `TimeSeriesChart` for a value over time (long series are thinned
+by LTTB in `charts/downsample.ts`, which *selects* real rows rather than averaging them, so the
+crosshair always lands on a real day); `WaterfallChart` for how a running total got where it did;
+`CategoryPieChart` for parts of a whole. Adding a fourth means the same bar: it carries the
+readability invariants by construction, or it does not belong here.
+
+**Categorical colour is a fixed set of eight, never cycled.** `--chart-1..5` are *series* colours
+(assigned in registration order); `--chart-cat-1..8` are *identity* colours, for a chart where the
+colour means "this category" rather than "the second line". There are eight because past that,
+adjacent classes stop being tellable apart — so a ninth category folds into `Other` (`--chart-other`,
+a neutral, because Other is not a category) rather than inventing a hue. The values are not
+eyeballed: they pass a lightness band, a chroma floor, adjacent-pair separation under the three
+common colour-vision deficiencies, and a contrast check, in both themes. Re-validate before changing
+one.
 
 **Data fetching goes through `useResource`.** A page that reads an endpoint uses
 `useResource(key, fetcher)` (a stale-while-revalidate cache over `apiFetch`), not

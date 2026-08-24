@@ -11,6 +11,18 @@ class AllTransactionOut(Schema):
     category_sk: int | None
 
 
+class BreakdownRow(Schema):
+    """One transaction with its category names resolved, for the Breakdown page."""
+
+    date_sk: int
+    calendar_date: str
+    account_type: str
+    category: str
+    sub_category: str
+    label: str
+    amount: float
+
+
 class UncategorizedTransactionOut(Schema):
     date_sk: int
     account_type: str

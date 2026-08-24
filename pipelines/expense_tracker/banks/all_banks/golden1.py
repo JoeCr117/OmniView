@@ -11,8 +11,20 @@ row order are read, and mixing versions inside one account cannot make one
 file's shape reinterpret another's. Concatenating first would instead produce
 the union of both column sets, half of it null.
 
-The one non-obvious thing this parser does afterwards is recompute the credit
-card's running balance - see CREDIT_CARD_BALANCE_ANCHOR below.
+Two non-obvious things happen afterwards, both about restating what a file says
+into what the warehouse means:
+
+`_to_canonical_signs` is the important one. Golden1 does not sign money the same
+way twice - its v1 credit card is written from the ISSUER's side, where a
+purchase is positive because it increases what you owe, while every other export
+is written from the account holder's. Each file is restated on its own, against
+the convention `golden1_schema.py` declares for its (version, account) pair, so
+that every row below this module means one thing: money out is negative, money
+in is positive, and a balance is a signed contribution to net worth.
+
+`_fill_missing_balances` then reconstructs only the balances the export leaves
+empty - v2 states one per date, and v1's credit card states nothing but zeros -
+anchoring each to the nearest balance the bank did state.
 
 Every error raised here names the file, a count and 0-based row ordinals, and
 never a cell value: this pipeline's stdout and stderr are returned to the
@@ -33,24 +45,17 @@ from ..bank import Bank
 from .golden1_schema import (
     LEGACY_COLUMNS,
     Absent,
+    AccountConvention,
+    BalanceMeaning,
     Derived,
     Golden1CsvSchema,
+    MoneySign,
     RowOrder,
+    convention_for,
     detect_schema,
     normalize_header_name,
     sniff_header,
 )
-
-#: Golden1's exported per-row ``Balance`` is only trustworthy at end of day: rows
-#: sharing a date carry that day's *closing* balance rather than the balance
-#: after each individual transaction. `_fix_intraday_balance` therefore discards
-#: the exported column and rebuilds it from a running total, anchored to one
-#: date whose closing balance is known to be correct. Anchoring is what fixes the
-#: offset; any (date, balance) pair the account holder has verified will do, and
-#: the date need not still be present in the CSVs (the nearest earlier date is
-#: used instead). Re-anchor this if the account's history is ever re-exported
-#: from a different starting point.
-CREDIT_CARD_BALANCE_ANCHOR = ('2025-07-12', 1749.18)
 
 #: How many offending row positions an error message lists before it stops.
 _MAX_REPORTED_ROWS = 10
@@ -127,6 +132,50 @@ def _derive_transaction_direction(
     direction[has_debit] = 'DEBIT'
     direction[has_credit] = 'CREDIT'
     return direction
+
+
+def _negate(values: pd.Series) -> pd.Series:
+    """`values` with every sign flipped, and no negative zero left behind.
+
+    Adding zero is what removes it. `-0.0` is a real float64 value: it compares
+    equal to `0.0`, so nothing downstream misreads it, but it renders as
+    '-0.00' in a money column, and a $0.00 fee shown as '-$0.00' reads as a bug
+    to whoever finds it in the staged table. Golden1 exports those - the v1
+    credit card carries 20 zero-valued Credit cells in a single year.
+    """
+    return -values + 0.0
+
+
+def _to_canonical_signs(frame: pd.DataFrame, convention: AccountConvention) -> pd.DataFrame:
+    """`frame` restated so money out is negative and a debt balance is too.
+
+    This is the one place a version's sign quirks are undone, and it runs per
+    file, while `convention` still describes exactly the rows in front of it.
+    Everything downstream - staging, bronze, silver, the API, the Breakdown -
+    may then assume a single convention on every row of every account.
+
+    Doing it downstream instead is what produced the defect this function
+    exists to prevent: `silver_Golden1_CreditCard` applied one blanket
+    negation to a table holding both conventions at once, correcting the v1
+    rows and inverting the v2 rows in the same expression.
+
+    An `UNSTATED` balance becomes NULL rather than being kept. The v1 credit
+    card exports a literal zero on every row, and a zero is indistinguishable
+    from a real balance to every consumer below; NULL is the only value that
+    says "reconstruct me", which is what `_fill_missing_balances` then does.
+    """
+    canonical = frame.copy()
+
+    if convention.money is MoneySign.CARD_LEDGER:
+        canonical['Debit'] = _negate(canonical['Debit'])
+        canonical['Credit'] = _negate(canonical['Credit'])
+
+    if convention.balance is BalanceMeaning.DEBT:
+        canonical['Balance'] = _negate(canonical['Balance'])
+    elif convention.balance is BalanceMeaning.UNSTATED:
+        canonical['Balance'] = _absent_column(canonical.index)
+
+    return canonical
 
 
 def _parse_dates(dates: pd.Series, *, date_format: str, where: str) -> pd.Series:
@@ -224,8 +273,13 @@ def _to_oldest_first(
     )
 
 
-def _normalize_file(csv_text: str, *, where: str) -> pd.DataFrame:
+def _normalize_file(csv_text: str, *, account: str, where: str) -> pd.DataFrame:
     """One Golden1 CSV conformed to `LEGACY_COLUMNS`, oldest row first.
+
+    `account` is taken as its own argument rather than sliced back out of
+    `where` because it selects the file's sign convention, and a convention
+    picked by string-parsing a log label would be one rename away from
+    silently inverting a year of money.
 
     The frame is built column by column BY NAME out of the schema's `sources`
     map, so a source column no legacy column names - v2's 'Account', 'Account
@@ -268,6 +322,7 @@ def _normalize_file(csv_text: str, *, where: str) -> pd.DataFrame:
         )
 
     conformed = pd.DataFrame(by_legacy_name, columns=list(LEGACY_COLUMNS))
+    conformed = _to_canonical_signs(conformed, convention_for(spec.version, account))
     dates = _parse_dates(conformed['Date'], date_format=spec.date_format, where=where)
     conformed['DateSK'] = dates.dt.strftime('%Y%m%d').astype('int64')
     conformed['Date'] = dates.dt.strftime('%Y-%m-%d')
@@ -275,6 +330,86 @@ def _normalize_file(csv_text: str, *, where: str) -> pd.DataFrame:
     oldest_first = _to_oldest_first(conformed, dates, spec=spec, where=where).reset_index(drop=True)
     oldest_first['SourceSchema'] = spec.version
     return oldest_first
+
+
+def _to_chronological_order(frame: pd.DataFrame, *, where: str) -> pd.DataFrame:
+    """One account's concatenated frame, oldest transaction first.
+
+    Sorts on the ISO 'YYYY-MM-DD' `Date` string, whose lexical order IS its
+    chronological order - so no re-parse is needed after `_normalize_file`
+    already parsed it once.
+
+    `kind='stable'` is load-bearing: the default quicksort permutes rows that
+    share a date, and those ties ARE the transaction order the running balance
+    below and `Indx` above both record.
+
+    Runs for every account, not just the one that needs it. Golden1 exports the
+    deposit accounts already ordered - sorting them is a no-op - while the
+    credit card's own export is not (39 of its rows are dated before the row
+    above them). Sorting only the account known to be unsorted would leave the
+    monotonic-`DateSK` invariant every account is held to resting on an
+    accident of how the bank happened to write the other three.
+
+    Raises:
+        ValueError: a Date is not the ISO string `_normalize_file` writes, so
+            the lexical sort would not be chronological. Reported by position;
+            the cell itself is never echoed.
+    """
+    malformed = ~frame['Date'].str.fullmatch(r'\d{4}-\d{2}-\d{2}', na=False)
+    if malformed.any():
+        raise ValueError(
+            f'{where}: {int(malformed.sum())} row(s) carry a Date that is not '
+            "'YYYY-MM-DD', so ordering them lexically would not order them by "
+            f'date. First offending 0-based row positions: '
+            f'{_row_positions(malformed)}. This frame did not come through '
+            '_normalize_file.'
+        )
+    return frame.sort_values('Date', kind='stable', ignore_index=True)
+
+
+def _fill_missing_balances(frame: pd.DataFrame, *, where: str) -> pd.DataFrame:
+    """Every row's balance, reconstructing only the ones the export left empty.
+
+    The bank is trusted wherever it speaks. A stated balance is copied through
+    untouched - including v1's, which repeats a day's closing figure on each of
+    that day's rows and so cannot be re-derived from a running total without
+    changing numbers that have been correct for two years.
+
+    Two kinds of row arrive with nothing to copy, and one rule fills both:
+
+    - v2 states one balance per DATE and leaves that date's earlier rows empty.
+    - v1's credit card states a literal zero on every row, which
+      `_to_canonical_signs` has already turned into NULL, because a zero is
+      indistinguishable from a real balance to everything downstream.
+
+    An empty row's balance is its running total plus the offset implied by the
+    nearest STATED balance - taken from the next one where there is one
+    (`bfill`), falling back to the previous (`ffill`). Next-first is what makes
+    the intraday case right: the figure v2 states for a date is that date's
+    CLOSE, sitting on the last row of the date, so an earlier row of the same
+    day is that close minus the transactions still to come.
+
+    Anchoring to the NEAREST stated balance rather than to one fixed point is
+    what removed this module's hard-coded balance anchor. The offset is now a
+    fact read out of the export instead of a constant to re-verify by hand, and
+    an inconsistency anywhere stays local instead of shifting the whole history.
+    """
+    money = (frame['Debit'].fillna(0) + frame['Credit'].fillna(0)).round(2)
+    running = money.cumsum().round(2)
+
+    stated = frame['Balance']
+    offset = (stated - running).where(stated.notna()).bfill().ffill()
+
+    if offset.isna().all():
+        print(
+            f'{where}: no balance is stated on any row; balances are a running '
+            'total from zero and are relative, not absolute'
+        )
+        offset = pd.Series(0.0, index=frame.index)
+
+    filled = frame.copy()
+    filled['Balance'] = stated.where(stated.notna(), (running + offset).round(2))
+    return filled
 
 
 def _reject_undeclared_schemas(labelled_files: Sequence[tuple[str, str]]) -> None:
@@ -299,16 +434,16 @@ class Golden1(Bank):
             _reject_undeclared_schemas(labelled_files)
 
             df = pd.concat(
-                (_normalize_file(csv_text, where=where) for where, csv_text in labelled_files),
+                (
+                    _normalize_file(csv_text, account=account_name, where=where)
+                    for where, csv_text in labelled_files
+                ),
                 ignore_index=True,
             )
             df['AccountType'] = account_name
-            if account_name == 'CreditCard':
-                df = self._fix_intraday_balance(
-                    df,
-                    *CREDIT_CARD_BALANCE_ANCHOR,
-                    where=f'{self.name}/{account_name}',
-                )
+            account_where = f'{self.name}/{account_name}'
+            df = _to_chronological_order(df, where=account_where)
+            df = _fill_missing_balances(df, where=account_where)
             # Indx must be a consequence of the final row order, so it is
             # assigned last - after any reordering above.
             df = df.reset_index(names='Indx')
@@ -318,92 +453,3 @@ class Golden1(Bank):
             ]
 
         return account_data
-
-    def _fix_intraday_balance(
-        self,
-        df: pd.DataFrame,
-        known_date: str,
-        known_balance: float,
-        *,
-        where: str,
-    ) -> pd.DataFrame:
-        """Compute intraday balances anchored to a known end-of-day balance.
-
-        All monetary values are rounded to two decimals.
-
-        Parameters:
-        - df: DataFrame with ['Date', 'Debit', 'Credit']. The transaction amount
-            is computed here from 'Debit' and 'Credit'; any exported 'Balance'
-            is overwritten rather than read.
-        - known_date: string 'YYYY-MM-DD' of the day whose final balance you trust.
-        - known_balance: float, the actual balance at the end of that known_date.
-        - where: bank/account, to locate the offending frame in the log.
-
-        Returns:
-        - DataFrame sorted by Date, with adjusted balance, and same-date rows
-          kept in their input order. That tie order is this method's contract -
-          it is the transaction order `Indx` goes on to record - and it rests on
-          the stable sort below.
-
-        Raises:
-        - ValueError: a Date is not the 'YYYY-MM-DD' `_normalize_file` writes,
-          or no row is dated on or before `known_date`, leaving the anchor
-          unresolvable.
-        """
-        # kind='stable' is load-bearing: the default quicksort
-        # permutes rows that share a date, and those ties ARE the transaction
-        # order this method exists to preserve.
-        df = df.sort_values('Date', kind='stable', ignore_index=True)
-        df2 = df.copy()
-
-        # 2) Round transaction amounts
-        df2['Debit'] = (df2['Debit'].fillna(0)).round(2)
-        df2['Credit'] = (df2['Credit'].fillna(0)).round(2)
-        df2['TransactionAmount'] = (df2['Debit'] + df2['Credit']).round(2)
-
-        # 3) Zero-based running sum (rounded)
-        df2['ZeroCumSum'] = df2['TransactionAmount'].cumsum().round(2)
-
-        # 4) Determine anchor date (fallback to the nearest EARLIER date if missing)
-        kd = pd.to_datetime(known_date, format='%Y-%m-%d')
-        # Coerced, not raised: an inferred parse quotes the offending cell in
-        # pandas' own message. '%Y-%m-%d' is what `_normalize_file` writes, so a
-        # NaT here means this frame did not come through it.
-        parsed_dates = pd.to_datetime(df2['Date'], format='%Y-%m-%d', errors='coerce')
-        unparseable = parsed_dates.isna()
-        if unparseable.any():
-            raise ValueError(
-                f'{where}: {int(unparseable.sum())} row(s) reach the balance '
-                "rebuild with a Date that is not '%Y-%m-%d'. First offending "
-                '0-based row positions in the date-sorted frame: '
-                f'{_row_positions(unparseable)}.'
-            )
-        available_dates = pd.DatetimeIndex(parsed_dates.unique())
-
-        if kd not in available_dates:
-            # Filter dates that are less than known_date
-            filtered_dates = available_dates[available_dates < kd]
-            if not filtered_dates.empty:
-                kd = filtered_dates.max()
-            else:
-                # Handle case when no dates are less than known_date
-                raise ValueError(
-                    f'{where}: no transaction is dated on or before the balance '
-                    f'anchor {known_date}; the anchor cannot be resolved.'
-                )
-
-        df2['AnchorDate'] = kd.strftime('%Y-%m-%d')
-        # 5) Find zero-Cumsum at last transaction of anchor date
-        mask = df2['AnchorDate'] == df2['Date']
-        last_idx = df2[mask].index.max()
-        zero_at_anchor = df2.at[last_idx, 'ZeroCumSum']
-
-        # 6) Derive and round adjustment
-        adjustment = round(known_balance - zero_at_anchor, 2)
-        df2['Adjustment'] = adjustment
-
-        # 7) Compute true intraday balances (rounded). Only Balance is copied
-        # back: the working columns above stay local to this method.
-        df2['Balance'] = (df2['ZeroCumSum'] + adjustment).round(2)
-        df['Balance'] = df2['Balance']
-        return df

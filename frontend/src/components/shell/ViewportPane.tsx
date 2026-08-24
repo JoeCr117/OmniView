@@ -48,7 +48,15 @@ export function ViewportPane({ children }: { children: React.ReactNode }) {
   }, [key]);
 
   return (
-    <div ref={ref} data-tab-pane={key === "\0home" ? "home" : key} className="min-h-0 flex-1 overflow-auto">
+    // A flex column, so a page that wants to fill the pane exactly - rather than
+    // scroll - can say `flex-1` and get the height left over after the app's
+    // subnav, without hardcoding that subnav's height. Pages that don't ask stay
+    // content-sized: a flex item never shrinks below its content here.
+    <div
+      ref={ref}
+      data-tab-pane={key === "\0home" ? "home" : key}
+      className="flex min-h-0 flex-1 flex-col overflow-auto"
+    >
       {children}
     </div>
   );

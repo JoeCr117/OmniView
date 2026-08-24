@@ -1,8 +1,8 @@
 [
   {
-    "name": "JS shipped by the static export (brotli)",
+    "name": "JS shipped by the static export (brotli) - budget covers lazy chunks too; raised 540->575 kB for Phase 11's waterfall and pie primitives (own lazy chunks, initial bundle unchanged), measured 563 kB",
     "path": "out/_next/static/**/*.js",
-    "limit": "540 kB"
+    "limit": "575 kB"
   },
   {
     "name": "CSS shipped by the static export (brotli)",

@@ -4,6 +4,69 @@ from apps.expense_tracker.budgets.models import BudgetMap
 
 from .models import AllTransaction
 
+UNCATEGORIZED = 'Uncategorized'
+
+_BREAKDOWN_FIELDS = (
+    'date_sk',
+    'calendar_date',
+    'account_type',
+    'label',
+    'transaction_amount',
+    'category_sk',
+)
+
+
+def _category_names() -> dict[int, tuple[str, str]]:
+    """Every CategorySK mapped to its (Category, SubCategory) pair."""
+    return {
+        row['category_sk']: (row['category'], row['sub_category'])
+        for row in BudgetMap.objects.values('category_sk', 'category', 'sub_category')
+    }
+
+
+def _named(row: dict, names: dict[int, tuple[str, str]]) -> dict:
+    category, sub_category = names.get(row['category_sk'], (UNCATEGORIZED, UNCATEGORIZED))
+    return {
+        'date_sk': row['date_sk'],
+        'calendar_date': row['calendar_date'],
+        'account_type': row['account_type'],
+        'category': category,
+        'sub_category': sub_category,
+        'label': row['label'] or UNCATEGORIZED,
+        'amount': row['transaction_amount'],
+    }
+
+
+def breakdown_rows(start: str | None = None, end: str | None = None) -> list[dict]:
+    """
+    Every transaction, with its Category/SubCategory names resolved.
+
+    The Breakdown page pivots, drills and cross-filters this one payload
+    client-side (the same trade Check Book makes with DailyMetrics), so the whole
+    window ships in one response rather than one aggregate per interaction.
+
+    The names come from a second query joined in Python, not a SQL join: gold
+    carries no foreign keys (dbt builds by CTAS), the two relations are separate
+    unmanaged models, and the dimension is ~30 rows. This is the same shape as
+    budget_analysis above.
+
+    Rows whose CategorySK matches no BudgetMap entry - and rows the pipeline
+    never labelled - are reported as "Uncategorized" rather than dropped, so a
+    total over these rows still ties to the account totals.
+
+    `amount` is the raw signed SUM the warehouse stores: expenses negative,
+    income positive, on all four account types (see the sign note in
+    budget_analysis - it describes a convention the current Golden1 exports do
+    not exhibit, but the fixture CSVs under docs/examples do).
+    """
+    names = _category_names()
+    qs = AllTransaction.objects.all()
+    if start:
+        qs = qs.filter(calendar_date__gte=start)
+    if end:
+        qs = qs.filter(calendar_date__lte=end)
+    return [_named(row, names) for row in qs.values(*_BREAKDOWN_FIELDS)]
+
 
 def budget_analysis(start: str | None = None, end: str | None = None) -> list[dict]:
     """

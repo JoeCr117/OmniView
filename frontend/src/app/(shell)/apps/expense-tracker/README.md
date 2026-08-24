@@ -15,6 +15,7 @@ Trends share one cache key for the full daily-metrics history.
 |------|--------------|
 | `check-book/` | The Power BI-style daily ledger with year/month slicers. |
 | `daily-trends/` | The balance-over-time chart + a paginated table. |
+| `breakdown/` | The drillable matrix/waterfall/pie report, cross-filtered. |
 | `budget-map/` | The BudgetMap CRUD editor + Save/Rebuild. |
 | `raw-csvs/` | Per-account raw CSV viewer + upload. |
 | `uncategorized/` | Paginated uncategorized-transactions table. |
@@ -30,4 +31,4 @@ Trends share one cache key for the full daily-metrics history.
 
 ## See also
 - [apps/](../README.md) · [src/apps/expense-tracker/](../../../../apps/expense-tracker/README.md)
-- [check-book/](check-book/README.md) · [daily-trends/](daily-trends/README.md) · [budget-map/](budget-map/README.md) · [raw-csvs/](raw-csvs/README.md) · [uncategorized/](uncategorized/README.md)
+- [check-book/](check-book/README.md) · [daily-trends/](daily-trends/README.md) · [breakdown/](breakdown/README.md) · [budget-map/](budget-map/README.md) · [raw-csvs/](raw-csvs/README.md) · [uncategorized/](uncategorized/README.md)

@@ -4,3 +4,7 @@ data_tests:
   - name: CatToSubCatSums
     description: >
       Validates that subcategory budgets sum to less than or equal the parent category budget.
+  - name: TransactionSignSurvivesSilver
+    description: >
+      Validates that every account's daily transaction total is the same in gold as in bronze,
+      so no layer above bronze has changed the sign or magnitude of a transaction.

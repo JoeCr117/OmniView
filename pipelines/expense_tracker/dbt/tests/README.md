@@ -13,10 +13,11 @@ but **keeps these** (`deploy/databricks/build_app.py`).
 | Item | What it does |
 |------|--------------|
 | `Budgets/` | Budget-invariant data tests. |
+| `Golden1/` | Golden1 transaction-invariant data tests (transaction sign and magnitude). |
 
 ## Conventions & gotchas
 - These are dbt *data* tests (singular SQL tests), distinct from the backend's
   pytest suite. Don't confuse the two when the deploy bundle prunes test dirs.
 
 ## See also
-- [dbt/](../README.md) · [Budgets/](Budgets/README.md)
+- [dbt/](../README.md) · [Budgets/](Budgets/README.md) · [Golden1/](Golden1/README.md)

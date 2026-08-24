@@ -31,7 +31,9 @@ export function AppSubnav({ appId }: { appId: string }) {
   );
 
   return (
-    <nav aria-label={`${app.name} navigation`} className="flex gap-1 border-b px-6 pt-3">
+    // shrink-0: the viewport pane is a flex column, and the tab bar is chrome -
+    // it never gives up height to the page below it.
+    <nav aria-label={`${app.name} navigation`} className="flex shrink-0 gap-1 border-b px-6 pt-3">
       {navItems.map((item) => {
         const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
         return (

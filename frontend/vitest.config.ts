@@ -28,11 +28,14 @@ export default defineConfig({
       // `include` above is what makes these honest. Without it v8 reports only
       // files a test already imports, which scored this same tree at 86% - a
       // denominator that improves when you delete a test. 52% is the real figure.
+      // Ratcheted to the Breakdown feature's measured figures (Phase 11 M7),
+      // one point under each to leave room for ordinary noise rather than for
+      // regression.
       thresholds: {
-        statements: 57,
-        branches: 51,
-        functions: 52,
-        lines: 57,
+        statements: 59,
+        branches: 55,
+        functions: 55,
+        lines: 59,
       },
     },
   },

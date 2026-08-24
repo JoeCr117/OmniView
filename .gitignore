@@ -87,3 +87,11 @@ quality/reports/*
 .schemathesis/
 frontend/coverage/
 .coverage
+
+# Screenshots of the legacy Power BI report, kept as the Breakdown page's visual
+# reference. Same rule as Data/: they show real balances, merchants and category
+# names, and this repo is public.
+Breakdown Dashboard Refrence Images/
+
+# MSYS crash dumps (Git Bash on Windows)
+*.stackdump

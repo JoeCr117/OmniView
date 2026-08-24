@@ -51,6 +51,7 @@ export const APPS: readonly AppDefinition[] = [
     navItems: [
       { href: "/apps/expense-tracker/check-book", label: "Check Book" },
       { href: "/apps/expense-tracker/daily-trends", label: "Daily Trends" },
+      { href: "/apps/expense-tracker/breakdown", label: "Breakdown" },
       { href: "/apps/expense-tracker/uncategorized", label: "Uncategorized" },
       { href: "/apps/expense-tracker/budget-map", label: "Budget Map" },
       { href: "/apps/expense-tracker/raw-csvs", label: "Raw CSVs" },

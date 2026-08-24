@@ -48,6 +48,9 @@ All five phases are complete and deployed.
 | 8 | **Omni-ERD milestone set 2** — inspect and manipulate the diagram | ✅ complete (2026-07-22), deployed — see [Phase 8 detail](#phase-8-progress--omni-erd-inspect-and-manipulate) |
 | 9 | **Omni-ERD milestone set 3** — key tags, toolbar pill, multi-select | ✅ complete (2026-07-23), deployed — see [Phase 9 detail](#phase-9-progress--omni-erd-key-tags-toolbar-pill-multi-select) |
 | 10 | **Objective quality measurement** — measured baselines, ratcheted gates, pre-commit + CI | ✅ complete (2026-08-15), not yet deployed — see [Phase 10 detail](#phase-10--objective-quality-measurement) |
+| 11 | **ExpenseTracker Breakdown** — the legacy Power BI matrix/waterfall/pie page, rebuilt in-app | ✅ complete (2026-08-17), not yet deployed — see [Phase 11 detail](#phase-11--expensetracker-breakdown) |
+| 12 | **Golden1 v2 sign inversion** — 2026 card purchases reported as income; sign now declared per (version, account) and normalized in the parser | ✅ complete (2026-08-17), not yet deployed — see [Phase 12 detail](#phase-12--the-golden1-v2-sign-inversion) |
+| 13 | **Breakdown cross-filtering + Restart** — selections from two visuals now compose; Restart is a real bookmark of the default view | ✅ complete (2026-08-17), not yet deployed — see [Phase 13 detail](#phase-13--compound-cross-filtering-and-a-restart-that-restarts) |
 
 ---
 
@@ -757,6 +760,249 @@ history.
 
 ---
 
+## Phase 11 — ExpenseTracker Breakdown
+
+Rebuilding the legacy Power BI **Breakdown** page in-app, the way Check Book and Daily Trends were:
+a matrix (`CalendarDate → Label`, columns per account type), a waterfall (Year→Month→Day *or*
+Category→SubCategory→Label), a pie (expenses only), year/month slicers, and Power BI cross-filtering —
+click a mark and the other visuals filter, charts cross-highlight, Restart clears. Reference images
+live in `Breakdown Dashboard Refrence Images/` (untracked; decide separately whether they get
+committed — this repo is public).
+
+| M | Scope | Status |
+|---|---|---|
+| M1 | Backend: `GET /transactions/breakdown` + sign tripwire | ✅ (`acb605d`) |
+| M2 | Frontend data layer + pure aggregation module | ✅ (`8a8e26a`) |
+| M3 | Matrix + slicers (first visible milestone) | ✅ (`3516868`) |
+| M4 | Waterfall chart primitive | ✅ (`a7dd0b6`) |
+| M5 | Pie chart primitive | ✅ (`1a244c6`) |
+| M6 | Cross-filtering | ✅ (`7385ead`) |
+| M7 | Layout, tests, accessibility, docs | ✅ |
+
+### What M1 established, by measurement
+
+> ⚠️ **Both claims below were wrong, and Phase 12 fixes what they missed.** They are kept as
+> written because the *shape* of the error is the lesson: every measurement was taken on
+> `FreeChecking`, and every conclusion was stated about all four accounts. Read them with
+> [Phase 12](#phase-12--the-golden1-v2-sign-inversion).
+
+**The warehouse's signs are already consistent, so no pipeline change is needed.** Queried against the
+live compose database: `Food/FreeChecking` = −9,581.97 over 301 rows with **zero** positive rows,
+`Rent/FreeChecking` = −38,655.17 over 19 rows with zero, `Income/FreeChecking` = +190,445.61 all
+positive. Expenses are negative and income positive on all four account types, so
+`SUM(TransactionAmount)` is a valid signed measure and the whole feature stays inside the web layer.
+
+**The sign warning in `transactions/services.py:budget_analysis` describes the fixtures, not
+production.** `silver_Golden1_CreditCard` negates `(Debit+Credit)`; the real Golden1 card exports
+carry positive debits, so the negation lands expenses negative — matching the deposit accounts. The
+synthetic `docs/examples/Banks/Golden1/CreditCard/*.csv` carry *negative* debits, so the same negation
+would flip card expenses positive. Seeding tests from those would invert every spend visual.
+`transactions/tests/test_breakdown.py::test_expenses_are_negative_on_every_account_type` is the
+tripwire, and `datavault_schema.sql` now seeds a deposit-account expense specifically to arm it.
+
+> **Why that reasoning failed.** "The real Golden1 card exports carry positive debits" was true of
+> the 2024/2025 files and false of the 2026 file, which carries negative debits — so the blanket
+> negation inverted every 2026 card row. The fixtures were then read as the thing that was wrong,
+> when they in fact matched what the *newer* real export does; the v1 file is the outlier. Three
+> sampled categories were all `FreeChecking`, the one account type that never changed convention,
+> and none of the 176 inverted rows was in the sample.
+
+**The whole fact fits in one payload.** 1,586 rows, 2024-01-01 → 2026-07-29, 170 labels, 32
+subcategories — so `/breakdown` is unpaginated and the page pivots, drills and cross-filters
+client-side, the same trade Check Book makes with `DAILY_METRICS_KEY`. Server-side aggregation per
+interaction would buy nothing and cost a round-trip per click.
+
+`Category`/`SubCategory` exist only in `gold_Golden1_BudgetMap` and gold has no foreign keys, so
+`breakdown_rows` joins the ~30-row dimension in Python — 2 queries regardless of row count, budgeted
+in `test_query_budgets.py`. The 30 rows with no category surface as an **`Uncategorized`** bucket
+rather than being dropped, so the matrix total ties to the account totals (verified: 1,586 rows
+summing to 18,345.21, equal to the four per-account nets).
+
+### M2 — where the logic lives
+
+All three visuals' arithmetic is **pure functions in `apps/expense-tracker/lib/breakdown.ts`**:
+`dimensionKey`/`dimensionLabel`, `pivot` (matrix tree), `waterfall` (running totals), `pieSlices`
+(spend shares), `filterRows` (the substrate M6's cross-filter builds on). No DOM, no fixture, no
+server — which is why they carry 40 tests and why a slicer click recomputes without a request.
+
+Two things Check Book had inline were **extracted rather than copied**, and Check Book now imports
+them: `lib/slicer.ts` (Power BI slicer semantics — empty means *all*, clicking the only selection
+clears it, shift/ctrl extends) and `lib/money.ts` (accounting currency + the Tabulator column
+presets). The page's DOM and `.slicer-btn` classes are unchanged, and `e2e/check-book.spec.ts` was
+run green against the refactor.
+
+Group keys are chosen to **sort correctly as plain strings** (`"01".."12"` for months), so no visual
+needs a parallel numeric ordering field; `dimensionLabel` turns `"02"` into `"February"` at the edge.
+Aggregates round to the cent at every boundary — summing floats otherwise leaves
+`-1069.9600000000003` in a chart label.
+
+Frontend coverage rose to **statements 59.44 / branches 54.42 / functions 54.39 / lines 59.4** against
+thresholds of 57/51/52/57. **The thresholds were deliberately not ratcheted yet**: M3–M6 are the
+UI-heavy milestones, and raising the floor before them risks having to lower it, which the ratchet
+forbids. Raise them once in M7, to whatever the finished feature measures.
+
+### M3 — the matrix, verified against the source report
+
+The tab is live at `/apps/expense-tracker/breakdown`: year/month slicers, the matrix, and the four
+Power BI drill controls (drill up · drill-down mode · expand all one level · go to the next level).
+
+**Verified against the reference images, not just against itself.** With the 2025 slicer selected the
+matrix reproduces `Breakdown Dashboard 1.png` cell for cell — 2025-12-26 as ($79.60) / ($1,559.99) /
+$1,500.00 / $7.98 / ($131.61), 2025-12-23 as ($112.32) / ($4,144.67), 2025-12-07 netting $0.00 — and
+its footer totals **($471.13)**, the same number the legacy waterfall's 2025 bar carries. "Go to the
+next level" reproduces `Breakdown Dashboard 14.png`: 76 at ($30.20)/($67.56)/($97.76), AEGIS
+($318.24), Alaska ($878.00), BEL AIR ($52.05)/($61.14)/($113.19). Unfiltered, the footer reads
+$1,751.61 / ($6,221.92) / $29,998.94 / ($7,183.42) / **$18,345.21**, matching the database exactly.
+
+Three things worth not rediscovering:
+
+- **The grid remounts on a `key`, and that is deliberate.** `DataTable` builds Tabulator once and only
+  streams `data` in — rebuilding on prop identity would throw away sort and scroll state. But
+  Breakdown's *shape* changes (account columns drop when a filter excludes them, the hierarchy level
+  changes, expand-all toggles), so `BreakdownMatrix` keys the grid on its column signature. The key
+  excludes the rows, so a slicer click never costs the reader their scroll position.
+- **`dataTreeChildColumnCalcs` must stay false.** Children are already counted in their parent's
+  total; letting them into the footer bills every transaction twice. The footer tying to the database
+  is what proves it.
+- **`DataTable` gained an `onRowClick` prop.** Tabulator 6 moved `rowClick` out of the options object
+  into its event system, so it cannot be passed through `options` at all. It is registered once at
+  build and dispatched through a ref, so a handler closing over React state is never stale — there is
+  a test for exactly that.
+
+Check Book now shares the extracted `YearMonthSlicer` rather than holding a second copy of the markup;
+`e2e/check-book.spec.ts`, `navigation.spec.ts` and `accessibility.spec.ts` were run green against the
+change. **The Breakdown page is not yet in `accessibility.spec.ts`** — that spec asserts an exact set
+of violated rule ids per page, and adding it belongs with the rest of the test work in M7.
+
+### M4 — the waterfall, and the second chart primitive
+
+`components/charts/WaterfallChart.tsx` joins `TimeSeriesChart`, carrying the same invariants (required
+`ariaLabel`, titled axes with unit, cursor tooltip, `Lazy*` wrapper). `docs/ARCHITECTURE.md`'s "charts
+go through `TimeSeriesChart`" rule is now "charts go through the primitives in `components/charts/`",
+with the rule for adding a third stated: it carries the readability invariants by construction, or it
+does not belong there.
+
+Verified live: the Year waterfall reads 2024 **($598.83)** and 2025 **($471.13)** — the same two
+numbers as the legacy waterfall in `Breakdown Dashboard 1.png` — and the Category waterfall reproduces
+`Breakdown Dashboard 5.png`'s shape, with a tooltip reading Income **$195,057.82**, exactly the
+database figure. The `[Date] [Category]` toggle keeps **one drill state per axis**, so switching over
+and back does not dump the reader out of the year they were reading.
+
+Three implementation notes:
+
+- **Bars are Recharts *range* bars** (`dataKey` yielding `[min, max]`), not a transparent spacer
+  stacked under a visible bar. Stacking splits positive and negative values into separate stacks, so
+  any bar sitting below zero lands in the wrong place — which is most of this chart.
+- **Connectors are `ReferenceLine segment`s** between each bar's end and the next bar's start. The
+  closing Total bar is deliberately not connected: it restates the whole rather than continuing it.
+- **Two readability limits, both measured against the real chart, not guessed**: value labels are
+  dropped past 8 bars and ticks angle past 12. At 13 categories in the right-hand pane the labels
+  overlapped into an unreadable smear; the tooltip still carries the exact number, so nothing a reader
+  could actually have read is lost. Axis ticks also needed a *compact* formatter (`formatUsdCompact`,
+  "$19.5K") — full-cent strings are wide enough to collide with the axis title.
+
+The page is now a two-column grid weighted 7:5 toward the matrix, stacking below `xl`: six currency
+columns and a chart do not both fit at half width.
+
+### M5 — the pie, and a categorical palette that was validated rather than picked
+
+`CategoryPieChart` completes the three visuals. Verified live: at Category level it reads Investment
+**$46,059**, Banking **$40,253**, Rent **$39,243**, Food **$16,090**, Car **$8,924** — all exactly the
+database figures, and Investment's $46,059 is the same number `Breakdown Dashboard 7.png` shows.
+Drilling into Food reproduces `Breakdown Dashboard 8.png`: title "Expenses by Category and
+SubCategory", slices FastFood 52.92% / Dining 32.64% / Grocery 14.44% (the legacy report's 52.33 /
+31.5 / 16.17 — the same three, a different data vintage).
+
+**`--chart-cat-1..8` are new tokens, and they were validated, not chosen.** The existing `--chart-1..5`
+are *series* colours assigned in registration order; a pie needs *identity* colours, and it needs more
+than five. The eight new ones pass a lightness band, a chroma floor, adjacent-pair separation under
+protanopia/deuteranopia/tritanopia, and a contrast check, **in both themes** — the dark values are
+re-stepped against the dark surface, not an automatic lightening. Re-run the check before changing
+one.
+
+Three judgement calls, all recorded because they are deviations from the source report:
+
+- **Eight categorical slots, never cycled; a ninth category folds into `Other`** (neutral, and not
+  clickable — an aggregate cannot filter to anything). Past about eight, adjacent classes stop being
+  tellable apart. The categories this folds are the smallest slivers, and they remain reachable from
+  the waterfall's Category axis and the matrix, so nothing is unreachable from the page.
+- **Direct labels are the share only** (`26.1%`), not the legacy `Name $Value (pct%)`. Those strings
+  need a pane about twice this wide; here they clipped against the edge and each other. The name is in
+  the legend, the exact value in the tooltip.
+- **Recharts' `Legend` sorts alphabetically by default** (`itemSorter: "value"`) — it was explaining
+  the chart in an order the chart did not use. `itemSorter={null}` makes it follow the sectors.
+
+### M6 — cross-filtering, and the two rules that make it behave
+
+`lib/crossFilter.ts` is a pure reducer with 18 tests and no DOM. Two rules carry it:
+
+- **A visual never filters itself.** Clicking Food in the pie must leave the pie showing every
+  category — otherwise it collapses to a single 100% slice and there is no way back. The source keeps
+  its whole data and dims the marks outside the selection; every other visual filters.
+- **Several values of one dimension are OR; different dimensions are AND.** Selecting Food and Rent
+  means either; Food and 2025 means both. Anything else makes a ctrl-click return nothing, which
+  reads as a bug.
+
+Verified live against the reference images, and the numbers land exactly:
+
+- **`Breakdown Dashboard 9.png`** — clicking the pie's Food slice filters the matrix to 502 rows and
+  **drops the MoneyMarket and Savings columns** (that is the dynamic-column behaviour, not a
+  coincidence), footer **($16,089.78)**; the waterfall rescopes to 2024 **($12,878.96)** / 2025
+  **($5,100.64)** — both the legacy screenshot's figures — and the pie dims everything but Food.
+- **`Breakdown Dashboard 10.png`** — clicking the waterfall's 2025 bar filters the matrix to 2025
+  (footer **($471.13)**), dims the other bars, and rescopes the pie to Rent 31.08 / Banking 30.99 /
+  General 7.26 / Food 6.6, against the legacy report's 30.62 / 32.03 / 7.15 / 6.5.
+- **Restart** sits top-right as in the source report, clears selections *and* slicers, and disables
+  itself when there is nothing to clear.
+
+Two mechanics worth not rediscovering:
+
+- **Recharts' click handlers do not carry modifier keys.** Ctrl/shift-to-extend reads them off the
+  native event via `onClickCapture` on the chart container instead. There is a test for it — and note
+  that `userEvent` only carries a held key across calls made through the *same* `setup()` instance,
+  which is why those tests build one.
+- **`DataTable.onRowClick` now passes the originating event** alongside the row, so the matrix can
+  tell an extend-click from a plain one.
+
+### M7 — the layout, and the gates
+
+**The page now fills its pane.** It was capped at `max-w-7xl`, which left **376px of empty margin** in
+a 1656px viewport and truncated the matrix's column headers, and it ran ~50px taller than the pane so
+the pie sat below the fold. It is now full-width and, from `xl`, exactly as tall as the viewport pane:
+matrix left at 7fr, the two charts stacked right at 5fr, each sized by flex rather than by a fixed
+height. Measured after: **no horizontal scrollbar anywhere, no vertical page scroll, no clipped
+labels**, and full column headers. An E2E test asserts the no-sideways-scroll part, because three
+linked visuals are read together and a sideways scrollbar means one is off screen while the reader
+looks at another.
+
+That required one **shell** change: `ViewportPane` is now a flex column, so a page can say `flex-1`
+and claim the height left over after the app's subnav without hardcoding that subnav's height. Pages
+that don't ask stay content-sized, and the subnav is `shrink-0`. The full E2E suite was run against
+it — navigation, fullscreen, dark mode and every app page pass unchanged.
+
+**The pie's labels now adapt to the room they have.** Given a wide pane they write
+`Investment $46,059 (26.06%)`, as the source report did; squeezed, they fall back to the share alone
+rather than clipping. `sliceLabelText` is exported and tested directly, because Recharts sizes itself
+from the stubbed `ResizeObserver` and the DOM cannot express "narrow" in jsdom.
+
+**Gates.** 493 Vitest across 48 files, 44 Playwright across 11, 513 backend. Coverage ratcheted
+**57/51/52/57 → 59/55/55/59** against a measured 60.46 / 56.71 / 56.13 / 60.4. Accessibility: the Breakdown page
+carries **only** `aria-required-children` (the tab bar, ours) — notably *not* the three Tabulator
+rules the check book carries, because those come from its grouped column headers and this matrix's
+columns are flat.
+
+**The JS budget moved 540 → 575 kB** (measured 563 kB). That is a capability increase, not drift: the
+waterfall and pie ship as their own lazy chunks (26 kB and 34 kB raw) beside the line chart's, so the
+**initial bundle is unchanged** and only a page that plots pays. The budget deliberately counts lazy
+chunks so a dependency cannot hide behind a dynamic import; lower it whenever measurement allows.
+
+Two testing gotchas worth not rediscovering, both now in `e2e/README.md`: a **pie sector cannot be
+clicked positionally** (its bounding-box centre is the pie's centre, a vertex every slice shares, so
+the click is ambiguous and hangs on actionability — dispatch the event instead), and **Recharts axis
+ticks carry no text on the tick element**, so count marks rather than reading them.
+
+---
+
 ## Critical invariants — do not break these
 
 1. **Never rename a Django app label.** Labels derive table names, and
@@ -882,6 +1128,137 @@ worth re-confirming after any future rebuild-less deploy.
 
 ---
 
+## Phase 12 — the Golden1 v2 sign inversion
+
+Reported from the Breakdown page: PG&E on 2026-07-24 showed **+$237.66** on the credit card. The CSV
+says `-237.66`. Every 2026 card purchase was reported as income.
+
+**Root cause.** `silver_Golden1_CreditCard.sql` applied a blanket `*-1` to `(Debit + Credit)`. That
+negation is correct for the 2024/2025 export, which writes the card from the **issuer's** side (a
+purchase is positive, because it increases what you owe), and wrong for the 2026 export, which
+already writes it from the **cardholder's** side. One expression, a table holding both conventions:
+it corrected the rows it was written for and inverted the rest.
+
+| CreditCard rows | reported as spend | reported as income |
+|---|---|---|
+| 2025 (v1) | 252 | 12 |
+| 2026 (v2), before | 7 | **176** |
+| 2026 (v2), after | **176** | 7 |
+
+**Blast radius, measured.** $5,947.90 of 2026 card spend booked as income. The waterfall read
+2026 = +$19,415.17 against 2024's −$598.83. `pieSlices` admits only groups whose net is negative, so
+flipped purchases left the expenses chart entirely *and* cancelled real spend in their category.
+`_fix_intraday_balance` ran its cumulative sum across the sign discontinuity at 2026-01-02, so the
+app reported **−$13.33** owed on 2026-07-28 where the card actually owed **$1,576.61** — and of the
+132 rows where the 2026 CSV states the true balance, **zero** matched.
+
+**Why no test caught it.** The synthetic fixtures did not reproduce the data that breaks it.
+`docs/examples/Banks/Golden1/CreditCard/2024.csv` was written in the cardholder convention with a
+populated balance; the real v1 file uses the issuer convention with a `Balance` column of literal
+zeros. Every v2 fixture populated `Daily Balance` on every row where the real export populates one
+per *date*. Fixing the fixtures was therefore the first milestone, not an afterthought — until they
+told the truth, no assertion could fail.
+
+### What changed
+
+- **Sign is declared as data, per (version, account)**, in `golden1_schema.py`: `MoneySign`,
+  `BalanceMeaning`, `ACCOUNT_CONVENTIONS` (two entries and a default). It cannot key on version
+  alone — v1's header is byte-identical across all four accounts, so `detect_schema` returns
+  `golden1.v1` for the card and for checking alike, while only the card is issuer-signed.
+- **Normalization moved into the parser** (`_to_canonical_signs`), so every row below it means one
+  thing: money out negative, money in positive, `Balance` a signed contribution to net worth. The
+  three `*-1` expressions in `silver_Golden1_CreditCard` and `silver_Golden1_DailyBalances` are gone.
+- **`CREDIT_CARD_BALANCE_ANCHOR = ('2025-07-12', 1749.18)` was deleted.** `_fill_missing_balances`
+  now anchors each empty balance to the nearest balance the bank actually stated, preferring the next
+  over the previous (v2 states a date's *close*, so an earlier row of that day is the close minus the
+  transactions still to come). It also runs for all four accounts, which filled the 14 NULL
+  FreeChecking 2026 balances that v2's one-per-date format had introduced.
+- **Two tripwires.** `test_golden1_sign_convention.py` reconciles the parser's rebuilt balances
+  against every balance the export states — a right-hand side read out of the CSV, so no sign error
+  can satisfy it. `tests/Golden1/TransactionSignSurvivesSilver.sql` fails `dbt build` if any model
+  above bronze changes a day's total, which is the defect class, not just the defect.
+
+### Verified against real data
+
+The derived anchor reproduced **all 132** exported 2026 balances to the cent — and independently
+landed on **−1,749.18 at 2025-07-08**, the hand-verified figure the deleted constant carried. That
+agreement is what made deleting it safe: two independent derivations of the same number.
+
+| Check | Before | After |
+|---|---|---|
+| PG&E 2026-07-24 | +$237.66 | **−$237.66** |
+| CreditCard balance 2026-07-28 | −$13.33 | **−$1,576.61** |
+| Exported 2026 balances reconciled | 0 / 132 | **132 / 132** |
+| NULL balances in gold | 14 | **0** |
+| 2024 / 2025 output | — | **unchanged** (v1 was already corrected downstream; the correction just moved) |
+
+Suites: `uv run pytest` 543 passed · Vitest 493 passed · `dbt build` PASS=23 with the one
+pre-existing `CatToSubCatSums` failure (the Travel category budgets $390 against $440 of
+subcategories — a BudgetMap data issue, documented above, unrelated to this work).
+
+**Out of scope, logged.** v2 adds a bank-assigned `Category` column (36 values, e.g.
+`Food & Drink/Dining Out`) that the parser still drops. Mapping it needs a precedence rule against
+the BudgetMap and belongs to its own decision.
+
+---
+
+## Phase 13 — compound cross-filtering, and a Restart that restarts
+
+Two defects against `Breakdown Dashboard 15.png`, the source report's own screenshot.
+
+**1. Cross-filters did not compose.** `Selection` held a single `source`, and `applyClick` discarded
+the existing selection whenever the click came from a different visual — so the second click replaced
+the first instead of refining it. The reference shows `CreditCard` (matrix) and `2024` (waterfall)
+applied together, with the pie reduced by both. The matrix also cross-filtered from a **row** click;
+the reference uses the **account column header**.
+
+**2. Restart was blind to drill state.** Its enabled test checked three pieces of page state while
+**eight more lived inside the visuals** as `useState` — the matrix's drill/drillMode/expandAll, the
+waterfall's axis/drills/drillMode, the pie's drill/drillMode. Drilling therefore left the button
+disabled, and pressing it never undid a drill. The legacy control was a Power BI bookmark of the
+default view.
+
+### What changed
+
+- **`CrossFilter` is keyed by visual**, not by one source: `Partial<Record<VisualId, Criterion[]>>`.
+  Selections intersect, and `rowsFor` exempts a visual from its *own* entry and no other — so
+  composing never leaves a visual unable to show the whole, which was the reason for the single
+  source in the first place.
+- **The matrix cross-filters from its account column header on Ctrl/⌘+click**; rows now only drill
+  and expand. `DataTable` gained `onHeaderClick` and `headerClassNames`, both wired through refs so
+  neither remounts Tabulator.
+- **All view state lifted to the page** as one `BreakdownView` (`lib/breakdownView.ts`). The three
+  visuals are controlled. `isDefaultView` and Restart are both derived from `INITIAL_VIEW`, so a
+  future piece of view state cannot be half-wired — it either goes in the type and both behaviours
+  pick it up, or it does not exist.
+
+### Two things that only showed up in the browser
+
+**Ctrl+click both filtered *and* re-sorted.** Tabulator binds its sort to the whole header element,
+so one gesture fired both, and the re-sort (blank cells to the top) was what the reader saw. Fixed
+with `headerSortClickElement: "icon"` — Tabulator's own source recommends exactly this whenever
+something else wants the header click. Sorting moves to the sort arrow.
+
+**The selected-header style never applied.** `.tabulator .tabulator-col.matrix-selected` ties on
+specificity with Tabulator's `.tabulator .tabulator-header .tabulator-col`, and lost on source order.
+The selector now includes `.tabulator-header` to outrank it. Worth knowing: the pre-existing
+`matrix-total` rule has the same problem and only ever styled cells, never its header.
+
+### Verified
+
+Reproduced the reference: Ctrl+click `CreditCard`, then Ctrl+click the `2024` bar → chip reads
+**"Filtered by CreditCard, 2024"**, matrix scoped to 2024 with every account column still present,
+waterfall showing card-only values with 2024 saturated and 2025/2026 dimmed, pie reduced by both.
+The image's own oracle holds: the waterfall's 2024 bar (**$1,538.17**) equals the matrix's
+`CreditCard` column total. Restart then clears everything and disables itself.
+
+Restart now enables on — and clears — every previously invisible piece of state: next-level drill,
+expand-all, drill mode, and the waterfall's axis toggle.
+
+Suites: Vitest **523** passed (49 files) · Playwright **47** passed · `uv run pytest` **543** passed.
+
+---
+
 ## Outstanding tasks
 
 A backlog, not work in flight — none of these are started, and each is picked up
@@ -897,6 +1274,7 @@ deliberately rather than opportunistically.
 | **Wire a live Unity Catalog source to Omni-ERD** | The adapter is complete and fixture-tested; set `OMNI_ERD_DATABRICKS_CATALOG` + `OMNI_ERD_WAREHOUSE_ID` and add its namespaces in `sources.py`. |
 | **Click through Omni-ERD layout persistence** | Drag → refresh → tables stay put. Verified at API + DB level, never in a browser: there is no local user account and one would have to be created. |
 | Real Entra ID round-trip test | Needs the user's app registration; redirect URI `/accounts/microsoft/login/callback/`. |
+| **Map Golden1 v2's bank-assigned `Category` column** | The 2026 export carries 36 values (`Food & Drink/Dining Out`, …) that the parser drops. Useful as a fallback for the Uncategorized tab, but needs a precedence rule against the BudgetMap first. Deferred out of Phase 12 deliberately. |
 | Read-only Lakebase role for shared external users | Requested idea, never specced. |
 | Friendlier pre-first-Rebuild empty state | Currently a bare table. |
 | Functional header search | Present in the chrome, does nothing. |

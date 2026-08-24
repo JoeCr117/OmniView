@@ -9,13 +9,16 @@
 -- reports Actual = 0 rather than dropping out, which is what makes this usable
 -- as the left side of a budget report.
 --
--- SIGN CONVENTION - read before interpreting Actual. TransactionAmount reaches
--- this model already negated for CreditCard rows (silver_Golden1_CreditCard
--- multiplies Debit+Credit by -1) but NOT for the deposit accounts, so the same
--- $50 purchase nets to -50 on the credit card and +50 on checking. The raw
--- Debit/Credit columns are not carried this far, so the sign cannot be
--- normalized here. Actual is therefore the signed SUM as-is: read it as "this
--- account type's convention", not as "spend vs. income".
+-- SIGN CONVENTION - Actual is spend vs. income, on every account type alike.
+-- Negative is money out, positive is money in, and a $50 purchase nets to -50
+-- whether it was paid by card or from checking.
+--
+-- This comment previously documented the opposite, describing a per-account
+-- convention as intended behavior. It was not: the card's rows were negated
+-- once for every schema version, which corrected the 2024/2025 export and
+-- inverted the 2026 one. Normalization now happens in the parser, against a
+-- convention declared per (schema version, account) in `golden1_schema.py`, so
+-- there is one convention here and Actual can be read as spend directly.
 with budgets as (
     select
         CategorySK

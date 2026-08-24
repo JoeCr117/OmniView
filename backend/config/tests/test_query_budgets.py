@@ -34,6 +34,7 @@ def queries_for(client, url: str, alias: str = 'datavault') -> int:
         ('/api/expense-tracker/dailymetrics?limit=10', 2),
         ('/api/expense-tracker/dailymetrics/summary', 1),
         ('/api/expense-tracker/transactions?limit=10', 2),
+        ('/api/expense-tracker/transactions/breakdown', 2),
         ('/api/expense-tracker/transactions/uncategorized', 2),
     ],
 )

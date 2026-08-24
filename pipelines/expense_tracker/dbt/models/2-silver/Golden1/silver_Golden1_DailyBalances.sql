@@ -4,11 +4,16 @@
 	)
 }}
 WITH
--- 1. Get raw EOD balances for each table
+-- 1. Get raw EOD balances for each table.
+--    Every account's Balance already carries its sign as a contribution to net
+--    worth - the credit card's is negative because it is a debt - so the four
+--    are summed below without any per-account correction. The parser makes that
+--    true (`golden1_schema.py` declares which exports state a debt); this model
+--    negated the card here when it did not.
 EOD1 AS (
     SELECT
         t1.DateSK,
-        t1.Balance*-1 AS t1_EODBalance
+        t1.Balance AS t1_EODBalance
     FROM {{ ref('bronze_Golden1_CreditCard') }} AS t1
     JOIN (
         SELECT DateSK, MAX(TransactionIndex) AS MaxTx
